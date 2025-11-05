@@ -1,4 +1,4 @@
-// app/api/items/[id]/route.ts
+// app/api/items/[id]/route.ts - FIXED
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 
@@ -19,13 +19,15 @@ const itemSchema = new mongoose.Schema({
 });
 
 const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
-// ADD TO YOUR EXISTING app/api/items/[id]/route.ts
+
+// PUT - Update item
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // Add Promise wrapper
 ) {
   try {
-    console.log('✏️ Updating item:', params.id);
+    const { id } = await params; // AWAIT the params first
+    console.log('✏️ Updating item:', id);
     
     // Connect to MongoDB
     if (mongoose.connection.readyState === 0) {
@@ -34,7 +36,7 @@ export async function PUT(
 
     const formData = await request.formData();
     
-    // Extract form data (same as sell route)
+    // Extract form data
     const title = formData.get('title') as string;
     const price = parseFloat(formData.get('price') as string);
     const category = formData.get('category') as string;
@@ -45,11 +47,8 @@ export async function PUT(
     const phone = formData.get('phone') as string;
     const contactMethod = formData.get('contactMethod') as string;
 
-    // For now, we'll keep existing images
-    // Later you can add image update functionality
-
     const updatedItem = await Item.findByIdAndUpdate(
-      params.id,
+      id, // Use the awaited id
       {
         title,
         description,
@@ -60,9 +59,8 @@ export async function PUT(
         area: area || '',
         phone,
         contactMethod,
-        // images: existing images are preserved
       },
-      { new: true } // Return updated document
+      { new: true }
     );
 
     if (!updatedItem) {
@@ -87,18 +85,20 @@ export async function PUT(
   }
 }
 
-// ADD TO YOUR EXISTING app/api/items/[id]/route.ts
+// GET - Fetch specific item
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } 
 ) {
   try {
+    const { id } = await params; // AWAIT the params first
+    
     // Connect to MongoDB
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(process.env.MONGODB_URI!);
     }
 
-    const item = await Item.findById(params.id);
+    const item = await Item.findById(id); // Use the awaited id
     
     if (!item) {
       return NextResponse.json(
@@ -117,19 +117,22 @@ export async function GET(
     );
   }
 }
+
+// DELETE - Remove item
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // Add Promise wrapper
 ) {
   try {
-    console.log('🗑️ Deleting item:', params.id);
+    const { id } = await params; // AWAIT the params first
+    console.log('🗑️ Deleting item:', id);
     
     // Connect to MongoDB
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(process.env.MONGODB_URI!);
     }
 
-    const result = await Item.findByIdAndDelete(params.id);
+    const result = await Item.findByIdAndDelete(id); // Use the awaited id
     
     if (!result) {
       return NextResponse.json(

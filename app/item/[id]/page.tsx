@@ -1,50 +1,134 @@
 // app/item/[id]/page.tsx
+'use client';
+
 import { notFound } from 'next/navigation';
-import mongoose from 'mongoose';
+import { useState, useEffect } from 'react';
+import { MessageCircle, Heart } from "lucide-react";
 
-// Define the item schema
-const itemSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  price: Number,
-  category: String,
-  condition: String,
-  city: String,
-  area: String,
-  phone: String,
-  contactMethod: String,
-  images: [String],
-  sellerId: String,
-  sellerName: String,
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
-
-async function getItem(id: string) {
-  try {
-    if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGODB_URI!);
-    }
-    
-    const item = await Item.findById(id);
-    return item;
-  } catch (error) {
-    console.error('Error fetching item:', error);
-    return null;
-  }
+// Define the item interface
+interface Item {
+  _id: string;
+  title: string;
+  description: string;
+  price: number;
+  category: string;
+  condition: string;
+  city: string;
+  area?: string;
+  phone: string;
+  contactMethod: string;
+  images: string[];
+  sellerId: string;
+  sellerName: string;
+  createdAt: string;
 }
 
-// NEXT.JS 15 FIX: Use async function and await params
-export default async function ItemPage({ 
+export default function ItemPage({ 
   params 
 }: { 
-  params: Promise<{ id: string }> 
+  params: { id: string }
 }) {
-  // AWAIT the params (Next.js 15 change)
-  const { id } = await params;
+  const [item, setItem] = useState<Item | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isStartingConversation, setIsStartingConversation] = useState(false);
   
-  const item = await getItem(id);
+  const { id } = params;
+
+  // Fetch item data on client side
+  useEffect(() => {
+    const fetchItem = async () => {
+      try {
+        const response = await fetch(`/api/items/${id}`);
+        if (response.ok) {
+          const itemData = await response.json();
+          setItem(itemData);
+        } else {
+          notFound();
+        }
+      } catch (error) {
+        console.error('Error fetching item:', error);
+        notFound();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchItem();
+  }, [id]);
+
+  const handleContact = (contactMethod: string, phone: string) => {
+    if (contactMethod === 'whatsapp') {
+      window.open(`https://wa.me/${phone}`, '_blank');
+    } else if (contactMethod === 'phone') {
+      window.open(`tel:${phone}`, '_blank');
+    } else {
+      alert(`Contact the seller at: ${phone}`);
+    }
+  };
+
+  const handleMessageSeller = async () => {
+    if (!item) return;
+    
+    setIsStartingConversation(true);
+    
+    // For now, we'll use mock user data - replace with real auth later
+    const currentUser = {
+      id: 'current-user-id',
+      name: 'Current User',
+      email: 'user@example.com'
+    };
+
+    const initialMessage = `Hi! I'm interested in your "${item.title}". Is it still available?`;
+
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          itemId: item._id,
+          itemTitle: item.title,
+          sellerId: item.sellerId,
+          sellerName: item.sellerName,
+          buyerId: currentUser.id,
+          buyerName: currentUser.name,
+          buyerEmail: currentUser.email,
+          initialMessage: initialMessage
+        }),
+      });
+
+      if (response.ok) {
+        const conversation = await response.json();
+        // Redirect to messages page
+        window.location.href = `/messages`;
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to start conversation. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      alert('Error starting conversation. Please try again.');
+    } finally {
+      setIsStartingConversation(false);
+    }
+  };
+
+  const handleSaveItem = () => {
+    alert('Save feature coming soon!');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-center items-center min-h-64">
+            <p>Loading item...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!item) {
     notFound();
@@ -111,13 +195,41 @@ export default async function ItemPage({
                 <p><strong>Phone:</strong> {item.phone}</p>
                 <p><strong>Preferred Contact:</strong> {item.contactMethod}</p>
                 
-                <div className="flex gap-3 pt-4">
-                  <button className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                  {/* Message Seller Button - UPDATED */}
+                  <button 
+                    className="flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleMessageSeller}
+                    disabled={isStartingConversation}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    {isStartingConversation ? 'Starting Conversation...' : 'Message Seller'}
+                  </button>
+                  
+                  {/* Contact via Preferred Method Button */}
+                  <button 
+                    className="flex items-center justify-center gap-2 border border-green-600 text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-green-600 hover:text-white transition-colors"
+                    onClick={() => handleContact(item.contactMethod, item.phone)}
+                  >
                     Contact via {item.contactMethod}
                   </button>
-                  <button className="border border-border px-6 py-3 rounded-lg font-semibold hover:bg-accent transition-colors">
+                  
+                  {/* Save Item Button */}
+                  <button 
+                    className="flex items-center justify-center gap-2 border border-border px-6 py-3 rounded-lg font-semibold hover:bg-accent transition-colors"
+                    onClick={handleSaveItem}
+                  >
+                    <Heart className="h-4 w-4" />
                     Save Item
                   </button>
+                </div>
+
+                {/* Quick Contact Info */}
+                <div className="bg-muted/50 p-4 rounded-lg mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Quick tip:</strong> You can contact the seller directly at <strong>{item.phone}</strong> 
+                    {item.contactMethod === 'whatsapp' ? ' on WhatsApp' : item.contactMethod === 'phone' ? ' via phone call' : ''}.
+                  </p>
                 </div>
               </div>
             </div>

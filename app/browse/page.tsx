@@ -1,41 +1,79 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Search, Filter } from "lucide-react"
-import Link from "next/link"
+// app/browse/page.tsx
+'use client';
 
-// Define the item type based on your schema
+import { useState, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { SearchFilters } from "@/components/search-filters";
+import Link from "next/link";
+
 interface Item {
-  _id: string
-  title: string
-  description: string
-  price: number
-  category: string
-  condition: string
-  city: string
-  area?: string
-  images: string[]
-  createdAt: string
+  _id: string;
+  title: string;
+  description: string;
+  price: number;
+  category: string;
+  condition: string;
+  city: string;
+  area?: string;
+  images: string[];
 }
 
-async function getItems(): Promise<Item[]> {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/api/items`, {
-      cache: 'no-store'
-    })
-    
-    if (!res.ok) {
-      throw new Error('Failed to fetch items')
+interface SearchFiltersType {
+  search: string;
+  category: string;
+  condition: string;
+  minPrice: string;
+  maxPrice: string;
+}
+
+export default function BrowsePage() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [filteredItems, setFilteredItems] = useState<Item[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeFilters, setActiveFilters] = useState<SearchFiltersType>({
+    search: '',
+    category: '',
+    condition: '',
+    minPrice: '',
+    maxPrice: ''
+  });
+
+  // Fetch all items on initial load
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const fetchItems = async (filters: SearchFiltersType = activeFilters) => {
+    setIsLoading(true);
+    try {
+      // Build query string from filters
+      const params = new URLSearchParams();
+      if (filters.search) params.append('search', filters.search);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.condition) params.append('condition', filters.condition);
+      if (filters.minPrice) params.append('minPrice', filters.minPrice);
+      if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
+
+      const queryString = params.toString();
+      const url = queryString ? `/api/items?${queryString}` : '/api/items';
+
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data);
+        setFilteredItems(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch items:', error);
+    } finally {
+      setIsLoading(false);
     }
-    
-    return res.json()
-  } catch (error) {
-    console.error('Error fetching items:', error)
-    return []
-  }
-}
+  };
 
-export default async function BrowsePage() {
-  const items = await getItems()
+  const handleSearch = (filters: SearchFiltersType) => {
+    setActiveFilters(filters);
+    fetchItems(filters);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -44,7 +82,8 @@ export default async function BrowsePage() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Browse Marketplace</h1>
           <p className="text-muted-foreground">
-            {items.length} {items.length === 1 ? 'item' : 'items'} found
+            {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} found
+            {activeFilters.search && ` for "${activeFilters.search}"`}
           </p>
         </div>
         
@@ -56,30 +95,23 @@ export default async function BrowsePage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-col md:flex-row gap-4 mb-8">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search for items..."
-            className="pl-10"
-          />
-        </div>
-        
-        <Button variant="outline">
-          <Filter className="h-4 w-4 mr-2" />
-          Filters
-        </Button>
+      <div className="mb-8">
+        <SearchFilters onSearch={handleSearch} />
       </div>
 
       {/* Items Grid */}
-      {items.length === 0 ? (
+      {isLoading ? (
+        <div className="flex justify-center items-center min-h-64">
+          <div className="text-muted-foreground">Loading items...</div>
+        </div>
+      ) : filteredItems.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground text-lg">No items found</p>
-          <p className="text-muted-foreground">Be the first to list an item!</p>
+          <p className="text-muted-foreground">Try adjusting your search filters</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <Link 
               key={item._id} 
               href={`/item/${item._id}`}
@@ -102,6 +134,9 @@ export default async function BrowsePage() {
               <p className="text-sm text-muted-foreground capitalize mb-1">
                 Condition: {item.condition}
               </p>
+              <p className="text-sm text-muted-foreground capitalize">
+                Category: {item.category}
+              </p>
               <p className="text-sm text-muted-foreground">
                 {item.city}{item.area ? `, ${item.area}` : ''}
               </p>
@@ -110,5 +145,5 @@ export default async function BrowsePage() {
         </div>
       )}
     </div>
-  )
+  );
 }

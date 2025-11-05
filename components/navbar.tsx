@@ -3,22 +3,22 @@
 
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { MessageCircle, User, Package, LogOut, Bell, Settings, ArrowLeft, Home } from "lucide-react"
+import { MessageCircle, User, Package, LogOut, Bell, Settings, ArrowLeft, Home, Heart } from "lucide-react" // Added Heart icon
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
-import { useState } from "react" // Add this import
+import { useState } from "react"
 
 export function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
   const { user, logout, isLoading } = useAuth()
-  const [isLoggingOut, setIsLoggingOut] = useState(false) // Add loading state for logout
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [savedItemsCount, setSavedItemsCount] = useState(3) // Example count for saved items
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
     try {
-      await logout() // Wait for logout to complete
-      // Force a full page refresh to ensure all state is cleared
+      await logout()
       window.location.href = '/'
     } catch (error) {
       console.error('Logout failed:', error)
@@ -26,12 +26,10 @@ export function Navbar() {
     }
   }
 
-  // Function to handle back navigation
   const handleBack = () => {
     if (window.history.length > 1) {
       router.back()
     } else {
-      // If no history, go to home page
       router.push('/')
     }
   }
@@ -135,12 +133,20 @@ export function Navbar() {
             {user ? (
               // USER IS LOGGED IN - Show personalized menu
               <div className="flex items-center gap-4">
-                {/* Notification Bell */}
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    3
-                  </span>
+                {/* FAVORITES/SAVED ITEMS - Replaced Notification Bell */}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="relative text-amber-700 hover:text-amber-800 hover:bg-amber-50"
+                  onClick={() => router.push('/favorites')}
+                  aria-label="Saved items"
+                >
+                  <Heart className="h-5 w-5" />
+                  {savedItemsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-amber-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {savedItemsCount}
+                    </span>
+                  )}
                 </Button>
 
                 {/* User Profile Dropdown (simplified) */}
