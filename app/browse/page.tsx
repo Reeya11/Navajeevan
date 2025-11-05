@@ -60,11 +60,37 @@ export default function BrowsePage() {
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setItems(data);
-        setFilteredItems(data);
+        
+        // Handle different response formats
+        let itemsArray: Item[] = [];
+        
+        if (Array.isArray(data)) {
+          // If response is directly an array
+          itemsArray = data;
+        } else if (data.items && Array.isArray(data.items)) {
+          // If response has items property
+          itemsArray = data.items;
+        } else if (data.success && Array.isArray(data.items)) {
+          // If response has success and items
+          itemsArray = data.items;
+        } else {
+          // If response is unexpected format, log it
+          console.warn('Unexpected API response format:', data);
+          itemsArray = [];
+        }
+        
+        console.log('Fetched items:', itemsArray);
+        setItems(itemsArray);
+        setFilteredItems(itemsArray);
+      } else {
+        console.error('Failed to fetch items:', res.status);
+        setItems([]);
+        setFilteredItems([]);
       }
     } catch (error) {
       console.error('Failed to fetch items:', error);
+      setItems([]);
+      setFilteredItems([]);
     } finally {
       setIsLoading(false);
     }
@@ -75,6 +101,9 @@ export default function BrowsePage() {
     fetchItems(filters);
   };
 
+  // Ensure filteredItems is always an array for rendering
+  const displayItems = Array.isArray(filteredItems) ? filteredItems : [];
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -82,7 +111,7 @@ export default function BrowsePage() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Browse Marketplace</h1>
           <p className="text-muted-foreground">
-            {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} found
+            {displayItems.length} {displayItems.length === 1 ? 'item' : 'items'} found
             {activeFilters.search && ` for "${activeFilters.search}"`}
           </p>
         </div>
@@ -104,14 +133,14 @@ export default function BrowsePage() {
         <div className="flex justify-center items-center min-h-64">
           <div className="text-muted-foreground">Loading items...</div>
         </div>
-      ) : filteredItems.length === 0 ? (
+      ) : displayItems.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground text-lg">No items found</p>
           <p className="text-muted-foreground">Try adjusting your search filters</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.map((item) => (
+          {displayItems.map((item) => (
             <Link 
               key={item._id} 
               href={`/item/${item._id}`}

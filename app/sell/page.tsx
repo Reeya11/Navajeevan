@@ -1,7 +1,7 @@
 // app/sell/page.tsx
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Upload, DollarSign, MapPin, X } from 'lucide-react';
@@ -13,11 +13,34 @@ export default function SellItemPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isClient, setIsClient] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Redirect to login if not authenticated
+  // Fix hydration by only rendering after client-side check
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Redirect to login if not authenticated (only on client)
+  useEffect(() => {
+    if (isClient && !user) {
+      router.push('/login');
+    }
+  }, [user, isClient, router]);
+
+  // Show loading while checking auth
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-muted-foreground">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Return null if no user (will redirect in useEffect)
   if (!user) {
-    router.push('/login');
     return null;
   }
 
@@ -35,9 +58,7 @@ export default function SellItemPage() {
         
         const reader = new FileReader();
         
-        // Define the onload event handler with proper typing
         reader.onload = (event: ProgressEvent<FileReader>) => {
-          // Full proof null checking
           const target = event.target;
           if (!target || !target.result) return;
           
@@ -111,43 +132,44 @@ export default function SellItemPage() {
     });
 
     try {
+      console.log('🚀 Sending request to /api/items/sell');
+      
       const response = await fetch('/api/items/sell', {
         method: 'POST',
         body: formData,
       });
 
-      if (response.ok) {
-        const item = await response.json();
-        router.push(`/item/${item.id}`);
-      } else {
-        // Get error message from response if available
-        let errorMessage = 'Failed to create listing';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          // If response is not JSON, use status text
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-      // Replace lines 132-136 with this code:
-} catch (error) {
-  console.error('Error creating listing:', error);
-  
-  // Handle the error safely
-  let errorMessage = 'Failed to create listing. Please try again.';
-  
-  if (error instanceof Error) {
-    errorMessage = error.message;
-  } else if (typeof error === 'string') {
-    errorMessage = error;
-  }
-  
-  alert(errorMessage);
-}
+      console.log('📨 Response status:', response.status);
       
- finally {
+      // Check content type first
+      const contentType = response.headers.get('content-type');
+      console.log('📄 Content-Type:', contentType);
+
+      if (!contentType?.includes('application/json')) {
+        const text = await response.text();
+        console.error('❌ Received non-JSON response:', text.substring(0, 200));
+        throw new Error('Server returned an error page. Please check the API route.');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `Server error: ${response.status}`);
+      }
+
+      console.log('✅ Item created:', data);
+      router.push(`/item/${data.id}`);
+
+    } catch (error) {
+      console.error('❌ Error creating listing:', error);
+      let errorMessage = 'Failed to create listing. Please try again.';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      alert(`Error: ${errorMessage}`);
+    } finally {
       setIsLoading(false);
     }
   };
