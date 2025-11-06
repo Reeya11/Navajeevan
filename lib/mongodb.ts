@@ -1,30 +1,27 @@
-import mongoose from 'mongoose';
+import { MongoClient, Db } from 'mongodb';
 
-const connection: { isConnected?: number } = {};
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/navajeevan';
+const MONGODB_DB = process.env.MONGODB_DB || 'navajeevan';
 
-async function connect() {
-  // Check if we already have a connection to the database.
-  if (connection.isConnected) {
-    console.log('Already connected to the database.');
-    return;
+let cachedClient: MongoClient | null = null;
+let cachedDb: Db | null = null;
+
+export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
+  if (cachedClient && cachedDb) {
+    return { client: cachedClient, db: cachedDb };
   }
 
-  // Check if there are any existing connections that we can use.
-  if (mongoose.connections.length > 0) {
-    connection.isConnected = mongoose.connections[0].readyState;
-    if (connection.isConnected === 1) {
-      console.log('Use previous database connection.');
-      return;
-    }
-    // If the connection is not ready, disconnect it. We will create a new one.
-    await mongoose.disconnect();
+  if (!MONGODB_URI) {
+    throw new Error('Please define MONGODB_URI environment variable');
   }
 
-  // Create a new database connection.
-  // The '!' tells TypeScript that MONGODB_URI is definitely set.
-  const db = await mongoose.connect(process.env.MONGODB_URI!);
-  console.log('New database connection established.');
-  connection.isConnected = db.connections[0].readyState;
+  const client = await MongoClient.connect(MONGODB_URI);
+  const db = client.db(MONGODB_DB);
+
+  cachedClient = client;
+  cachedDb = db;
+
+  return { client, db };
 }
 
-export default connect;
+export default connectToDatabase;

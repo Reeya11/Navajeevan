@@ -3,7 +3,8 @@
 
 import { notFound } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { MessageCircle, Heart } from "lucide-react";
+import { MessageCircle, Heart, CreditCard } from "lucide-react";
+import PaymentComponent from '@/components/PaymentComponent';
 
 // Define the item interface
 interface Item {
@@ -23,22 +24,34 @@ interface Item {
   createdAt: string;
 }
 
-export default function ItemPage({ 
-  params 
-}: { 
-  params: { id: string }
-}) {
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function ItemPage({ params }: PageProps) {
   const [item, setItem] = useState<Item | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
-  
-  const { id } = params;
+  const [showPayment, setShowPayment] = useState(false);
+  const [itemId, setItemId] = useState<string>('');
 
-  // Fetch item data on client side
+  // Await params in useEffect
   useEffect(() => {
+    const fetchParams = async () => {
+      const resolvedParams = await params;
+      setItemId(resolvedParams.id);
+    };
+    
+    fetchParams();
+  }, [params]);
+
+  // Fetch item data when itemId is available
+  useEffect(() => {
+    if (!itemId) return;
+
     const fetchItem = async () => {
       try {
-        const response = await fetch(`/api/items/${id}`);
+        const response = await fetch(`/api/items/${itemId}`);
         if (response.ok) {
           const itemData = await response.json();
           setItem(itemData);
@@ -54,7 +67,7 @@ export default function ItemPage({
     };
 
     fetchItem();
-  }, [id]);
+  }, [itemId]);
 
   const handleContact = (contactMethod: string, phone: string) => {
     if (contactMethod === 'whatsapp') {
@@ -118,6 +131,18 @@ export default function ItemPage({
     alert('Save feature coming soon!');
   };
 
+  // Payment handlers
+  const handlePaymentSuccess = (transactionId: string) => {
+    console.log('Payment successful! Transaction ID:', transactionId);
+    alert(`🎉 Payment Successful!\nTransaction ID: ${transactionId}\nThe seller will contact you for delivery.`);
+    setShowPayment(false);
+  };
+
+  const handlePaymentFailure = (error: string) => {
+    console.error('Payment failed:', error);
+    alert(`❌ Payment Failed: ${error}\nPlease try again or contact the seller directly.`);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background py-8">
@@ -146,7 +171,8 @@ export default function ItemPage({
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-4">
+          {/* Left Column - Product Images & Details */}
+          <div className="space-y-6">
             <div className="bg-muted rounded-lg h-96 flex items-center justify-center">
               {item.images && item.images.length > 0 ? (
                 <img 
@@ -158,10 +184,26 @@ export default function ItemPage({
                 <span className="text-muted-foreground">No images yet</span>
               )}
             </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-3">Description</h2>
+              <p className="text-foreground leading-relaxed">
+                {item.description}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-3">Location</h2>
+              <p className="text-foreground">
+                📍 {item.city}{item.area ? `, ${item.area}` : ''}
+              </p>
+            </div>
           </div>
 
+          {/* Right Column - Product Info & Actions */}
           <div className="space-y-6">
-            <div>
+            {/* Product Header */}
+            <div className="bg-white rounded-lg shadow-md p-6">
               <h1 className="text-3xl font-bold text-foreground mb-2">
                 {item.title}
               </h1>
@@ -175,30 +217,44 @@ export default function ItemPage({
               </div>
             </div>
 
-            <div>
-              <h2 className="text-xl font-semibold mb-3">Description</h2>
-              <p className="text-foreground leading-relaxed">
-                {item.description}
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-xl font-semibold mb-3">Location</h2>
-              <p className="text-foreground">
-                {item.city}{item.area ? `, ${item.area}` : ''}
-              </p>
-            </div>
-
-            <div className="border-t pt-6">
-              <h2 className="text-xl font-semibold mb-4">Contact Seller</h2>
-              <div className="space-y-3">
-                <p><strong>Phone:</strong> {item.phone}</p>
-                <p><strong>Preferred Contact:</strong> {item.contactMethod}</p>
-                
-                <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                  {/* Message Seller Button - UPDATED */}
+            {/* Payment Section */}
+            {showPayment ? (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Secure Payment</h2>
                   <button 
-                    className="flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => setShowPayment(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    ← Back
+                  </button>
+                </div>
+                <PaymentComponent
+                  productId={item._id}
+                  productName={item.title}
+                  amount={item.price}
+                  onPaymentSuccess={handlePaymentSuccess}
+                  onPaymentFailure={handlePaymentFailure}
+                />
+              </div>
+            ) : (
+              /* Action Buttons */
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-semibold mb-4">Purchase Options</h2>
+                
+                <div className="space-y-3">
+                  {/* Buy Now Button */}
+                  <button 
+                    className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                    onClick={() => setShowPayment(true)}
+                  >
+                    <CreditCard className="h-5 w-5" />
+                    Buy Now (Secure Payment)
+                  </button>
+
+                  {/* Message Seller Button */}
+                  <button 
+                    className="w-full flex items-center justify-center gap-2 border border-green-600 text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-green-600 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleMessageSeller}
                     disabled={isStartingConversation}
                   >
@@ -208,7 +264,7 @@ export default function ItemPage({
                   
                   {/* Contact via Preferred Method Button */}
                   <button 
-                    className="flex items-center justify-center gap-2 border border-green-600 text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-green-600 hover:text-white transition-colors"
+                    className="w-full flex items-center justify-center gap-2 border border-blue-600 text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 hover:text-white transition-colors"
                     onClick={() => handleContact(item.contactMethod, item.phone)}
                   >
                     Contact via {item.contactMethod}
@@ -216,7 +272,7 @@ export default function ItemPage({
                   
                   {/* Save Item Button */}
                   <button 
-                    className="flex items-center justify-center gap-2 border border-border px-6 py-3 rounded-lg font-semibold hover:bg-accent transition-colors"
+                    className="w-full flex items-center justify-center gap-2 border border-border px-6 py-3 rounded-lg font-semibold hover:bg-accent transition-colors"
                     onClick={handleSaveItem}
                   >
                     <Heart className="h-4 w-4" />
@@ -225,13 +281,42 @@ export default function ItemPage({
                 </div>
 
                 {/* Quick Contact Info */}
-                <div className="bg-muted/50 p-4 rounded-lg mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Quick tip:</strong> You can contact the seller directly at <strong>{item.phone}</strong> 
-                    {item.contactMethod === 'whatsapp' ? ' on WhatsApp' : item.contactMethod === 'phone' ? ' via phone call' : ''}.
+                <div className="bg-gray-50 p-4 rounded-lg mt-4">
+                  <p className="text-sm text-gray-600">
+                    <strong>Seller Contact:</strong> {item.phone}
+                    {item.contactMethod === 'whatsapp' ? ' (WhatsApp)' : 
+                     item.contactMethod === 'phone' ? ' (Phone Call)' : 
+                     ' (Message)'}
                   </p>
                 </div>
               </div>
+            )}
+
+            {/* Additional Info */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="font-semibold mb-3">📦 Delivery Information</h3>
+              <p className="text-sm text-gray-600 mb-2">
+                • Free pickup in {item.city}{item.area ? `, ${item.area}` : ''}<br/>
+                • Can arrange delivery (extra charges may apply)<br/>
+                • Contact seller for shipping options
+              </p>
+              
+              <h3 className="font-semibold mb-2 mt-4">🔒 Secure Transaction</h3>
+              <p className="text-sm text-gray-600">
+                • Real eSewa sandbox integration<br/>
+                • No real money will be charged<br/>
+                • College project purpose only
+              </p>
+            </div>
+
+            {/* Seller Info */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="font-semibold mb-2">👤 Seller Information</h3>
+              <p className="text-sm text-gray-600">
+                <strong>Name:</strong> {item.sellerName}<br/>
+                <strong>Location:</strong> {item.city}{item.area ? `, ${item.area}` : ''}<br/>
+                <strong>Contact:</strong> {item.phone} ({item.contactMethod})
+              </p>
             </div>
           </div>
         </div>
