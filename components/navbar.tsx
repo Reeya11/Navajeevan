@@ -3,7 +3,7 @@
 
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { MessageCircle, User, Package, LogOut, Bell, Settings, ArrowLeft, Home, Heart } from "lucide-react" // Added Heart icon
+import { MessageCircle, User, Package, LogOut, Bell, Settings, ArrowLeft, Home, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 import { useState } from "react"
@@ -13,7 +13,7 @@ export function Navbar() {
   const pathname = usePathname()
   const { user, logout, isLoading } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [savedItemsCount, setSavedItemsCount] = useState(3) // Example count for saved items
+  const [savedItemsCount, setSavedItemsCount] = useState(3)
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -42,7 +42,6 @@ export function Navbar() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <div className="animate-pulse bg-muted h-8 w-8 rounded-full"></div>
-              <div className="animate-pulse bg-muted h-8 w-8 rounded-full"></div>
               <div className="animate-pulse bg-muted h-8 w-32 rounded"></div>
             </div>
             <div className="flex items-center space-x-2">
@@ -59,10 +58,10 @@ export function Navbar() {
     <nav className="bg-background border-b border-border sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Left side: Navigation controls */}
+          {/* Left side: Logo and Navigation */}
           <div className="flex items-center space-x-4">
-            {/* Back Button - Only show when not on home page */}
-            {pathname !== '/' && (
+            {/* Back Button - Only show when not on home page AND user is logged in */}
+            {user && pathname !== '/' && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -74,16 +73,18 @@ export function Navbar() {
               </Button>
             )}
             
-            {/* Home Button - Always visible for quick access */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push('/')}
-              className="h-8 w-8 rounded-full"
-              aria-label="Go to home"
-            >
-              <Home className="h-4 w-4" />
-            </Button>
+            {/* Home Button - Show only when user is logged in */}
+            {user && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push('/')}
+                className="h-8 w-8 rounded-full"
+                aria-label="Go to home"
+              >
+                <Home className="h-4 w-4" />
+              </Button>
+            )}
 
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2">
@@ -92,48 +93,46 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Center: Navigation Links - Always visible */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link 
-              href="/browse" 
-              className={`transition-colors ${pathname === '/browse' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
-            >
-              Browse
-            </Link>
-            
-            {/* Show Dashboard link ONLY if logged in */}
-            {user && (
+          {/* Center: Navigation Links - ONLY when user is logged in */}
+          {user && (
+            <div className="hidden md:flex items-center space-x-8">
+              <Link 
+                href="/browse" 
+                className={`transition-colors ${pathname === '/browse' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
+              >
+                Browse
+              </Link>
+              
               <Link 
                 href="/dashboard" 
                 className={`transition-colors ${pathname === '/dashboard' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
               >
                 Dashboard
               </Link>
-            )}
-            
-            <Link
-              href="/messages"
-              className={`flex items-center space-x-1 transition-colors ${pathname === '/messages' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
-            >
-              <MessageCircle className="h-4 w-4" />
-              <span>Messages</span>
-            </Link>
+              
+              <Link
+                href="/messages"
+                className={`flex items-center space-x-1 transition-colors ${pathname === '/messages' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>Messages</span>
+              </Link>
 
-            {/* Categories dropdown or link */}
-            <Link 
-              href="/categories" 
-              className={`transition-colors ${pathname === '/categories' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
-            >
-              Categories
-            </Link>
-          </div>
+              <Link 
+                href="/categories" 
+                className={`transition-colors ${pathname === '/categories' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
+              >
+                Categories
+              </Link>
+            </div>
+          )}
 
           {/* Right side: Auth Buttons and Sell Item Button */}
           <div className="flex items-center space-x-4">
             {user ? (
-              // USER IS LOGGED IN - Show personalized menu
+              // USER IS LOGGED IN - Show full menu
               <div className="flex items-center gap-4">
-                {/* FAVORITES/SAVED ITEMS - Replaced Notification Bell */}
+                {/* FAVORITES/SAVED ITEMS */}
                 <Button 
                   variant="ghost" 
                   size="icon" 
@@ -149,7 +148,7 @@ export function Navbar() {
                   )}
                 </Button>
 
-                {/* User Profile Dropdown (simplified) */}
+                {/* User Profile */}
                 <div className="flex items-center gap-3">
                   <div className="bg-accent/10 w-8 h-8 rounded-full flex items-center justify-center">
                     <span className="text-sm font-medium text-accent">
@@ -176,9 +175,18 @@ export function Navbar() {
                   <LogOut className="h-4 w-4 mr-2" />
                   {isLoggingOut ? 'Logging out...' : 'Logout'}
                 </Button>
+
+                {/* Sell Item Button - Only for logged in users */}
+                <Button 
+                  size="sm" 
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => router.push('/sell')}
+                >
+                  Sell Item
+                </Button>
               </div>
             ) : (
-              // USER IS NOT LOGGED IN - Show auth buttons
+              // USER IS NOT LOGGED IN - Show ONLY Login/Signup
               <div className="flex items-center gap-3">
                 <Button 
                   variant="outline" 
@@ -198,15 +206,6 @@ export function Navbar() {
                 </Button>
               </div>
             )}
-
-            {/* Sell Item Button (visible to all) */}
-            <Button 
-              size="sm" 
-              className="bg-green-600 hover:bg-green-700"
-              onClick={() => router.push(user ? '/sell' : '/login')}
-            >
-              Sell Item
-            </Button>
           </div>
         </div>
       </div>

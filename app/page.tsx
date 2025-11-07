@@ -1,14 +1,12 @@
 import Link from "next/link"
-
 import { Button } from "@/components/ui/button"
-import { Package, Heart, Shield, Truck, Star } from "lucide-react"
-import { FeaturedItems } from "@/components/featured-items"
+import { Shield, Truck, Heart } from "lucide-react"
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="bg-background border-b border-border">
+      {/* Full-Page Hero Section */}
+      <section className="bg-background border-b border-border min-h-screen flex items-center justify-center">
         <div className="container mx-auto px-4 py-20 text-center">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
@@ -18,29 +16,15 @@ export default function HomePage() {
             <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
               Join Nepal's trusted marketplace for buying and selling second-hand goods. Sustainable, affordable, and community-driven.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="lg" className="bg-accent hover:bg-accent/90">
+            {/* ONLY Get Started Button */}
+            <div className="flex justify-center">
+              <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-lg px-8 py-6">
                 <Link href="/register">
-                  Get Started - It's Free!
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg">
-                <Link href="/browse">
-                  Browse Items
+                  Get Started – It's Free!
                 </Link>
               </Button>
             </div>
           </div>
-        </div>
-      </section>
-      {/* Featured Items Section */}
-      <section className="py-16 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-semibold text-foreground">Featured Items</h2>
-            <p className="text-muted-foreground">Discover amazing finds from our community</p>
-          </div>
-          <FeaturedItems />
         </div>
       </section>
 
@@ -83,7 +67,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-6">Ready to Join the Movement?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Thousands of users are already buying and selling on NavaJeevan. Don't miss out!
+            Create your account now and start trading in minutes
           </p>
           <Button asChild size="lg" variant="secondary">
             <Link href="/register">
