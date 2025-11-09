@@ -1,37 +1,9 @@
-// app/api/items/route.ts - UPDATED
+// app/api/items/route.ts - FINAL FIXED VERSION
 import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/mongodb';
-
-// Define item schema
-const itemSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  price: Number,
-  category: String,
-  condition: String,
-  city: String,
-  area: String,
-  phone: String,
-  contactMethod: String,
-  images: [String],
-  sellerId: String,
-  sellerName: String,
-  sellerEmail: String,
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
-
-// User schema for consistent user IDs
-const userSchema = new mongoose.Schema({
-  email: String,
-  name: String,
-  createdAt: { type: Date, default: Date.now }
-});
-
-const User = mongoose.models.User || mongoose.model('User', userSchema);
+import Item from '@/lib/models/Item';
+import User from '@/lib/models/User';
 
 // JWT verification function
 function verifyToken(token: string): any {
@@ -78,37 +50,46 @@ export async function GET(request: NextRequest) {
     const maxPrice = searchParams.get('maxPrice');
     const sortBy = searchParams.get('sortBy') || 'newest';
 
-    // Connect to MongoDB
-    if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGODB_URI!);
-    }
+    await connectDB();
 
-    // Build filter object
-    const filter: any = {};
+    // Build filter object - INCLUDE ITEMS WITH STATUS OR WITHOUT
+    const filter: any = {
+      $or: [
+        { status: 'active' },
+        { status: { $exists: false } } // Include items without status field
+      ]
+    };
 
     // Search in title and description
     if (search) {
-      filter.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
-      ];
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } }
+        ]
+      });
     }
 
     // Category filter (case-insensitive)
     if (category) {
-      filter.category = { $regex: category, $options: 'i' };
+      filter.$and = filter.$and || [];
+      filter.$and.push({ category: { $regex: category, $options: 'i' } });
     }
 
     // Condition filter
     if (condition) {
-      filter.condition = condition;
+      filter.$and = filter.$and || [];
+      filter.$and.push({ condition: condition });
     }
 
     // Price range filter
     if (minPrice || maxPrice) {
-      filter.price = {};
-      if (minPrice) filter.price.$gte = parseFloat(minPrice);
-      if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
+      filter.$and = filter.$and || [];
+      const priceFilter: any = {};
+      if (minPrice) priceFilter.$gte = parseFloat(minPrice);
+      if (maxPrice) priceFilter.$lte = parseFloat(maxPrice);
+      filter.$and.push({ price: priceFilter });
     }
 
     console.log('🔍 Search filters:', filter);
@@ -130,7 +111,7 @@ export async function GET(request: NextRequest) {
 
     const items = await Item.find(filter)
       .sort(sort)
-      .select('title price images condition city area description createdAt category sellerId sellerName sellerEmail')
+      .select('title price images condition city area description createdAt category sellerId sellerName sellerEmail status')
       .limit(50);
 
     console.log(`✅ Found ${items.length} items`);
@@ -152,38 +133,168 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 Starting item creation process...');
+    
     // Get token from cookies
     const cookieHeader = request.headers.get('cookie');
+    console.log('🍪 Raw cookie header:', cookieHeader);
+    
     const tokenCookie = cookieHeader?.split(';').find(c => c.trim().startsWith('auth-token='));
     const token = tokenCookie?.split('=')[1];
 
+    console.log('🔐 Auth check:', {
+      hasCookieHeader: !!cookieHeader,
+      tokenFound: !!token,
+      tokenLength: token?.length
+    });
+
     if (!token) {
+      console.log('❌ No auth token found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Connect to MongoDB
+    console.log('🔌 Connecting to database...');
     await connectDB();
+    
     // Get real user ID
+    console.log('👤 Verifying user...');
     const realUserId = await getRealUserId(token);
     const decodedToken = verifyToken(token);
 
-    const formData = await request.json();
+    console.log('✅ User authenticated:', {
+      userId: realUserId,
+      userName: decodedToken.name,
+      userEmail: decodedToken.email
+    });
+
+    // Handle FormData
+    console.log('📦 Processing form data...');
+    const formData = await request.formData();
     
+    // Log all form fields for debugging
+    const formFields: { [key: string]: any } = {};
+    for (const [key, value] of formData.entries()) {
+      formFields[key] = value;
+    }
+    console.log('📋 Form fields received:', formFields);
+
+    // Extract and validate required fields
+    const title = formData.get('title') as string;
+    const priceStr = formData.get('price') as string;
+    const category = formData.get('category') as string;
+    const condition = formData.get('condition') as string;
+    const city = formData.get('city') as string;
+    const phone = formData.get('phone') as string;
+    const contactMethod = formData.get('contactMethod') as string;
+    const imagesData = formData.get('images') as string;
+
+    console.log('🔍 Validating required fields...');
+    
+    // Validate required fields
+    if (!title || !priceStr || !category || !condition || !city || !phone || !contactMethod) {
+      console.error('❌ Missing required fields:', {
+        title: !!title, 
+        price: !!priceStr, 
+        category: !!category, 
+        condition: !!condition, 
+        city: !!city, 
+        phone: !!phone, 
+        contactMethod: !!contactMethod
+      });
+      return NextResponse.json({ 
+        error: 'Missing required fields' 
+      }, { status: 400 });
+    }
+
+    // Parse price
+    const price = parseFloat(priceStr);
+    if (isNaN(price)) {
+      console.error('❌ Invalid price:', priceStr);
+      return NextResponse.json({ 
+        error: 'Invalid price format' 
+      }, { status: 400 });
+    }
+
+    // Handle images - safely parse JSON or use empty array
+    let images: string[] = [];
+    if (imagesData) {
+      try {
+        images = JSON.parse(imagesData);
+        if (!Array.isArray(images)) {
+          images = [];
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to parse images, using empty array');
+        images = [];
+      }
+    }
+
+    console.log('💾 Creating item document...');
+    
+    // Create new item - STATUS WILL BE SET AUTOMATICALLY BY THE MODEL SCHEMA
     const newItem = new Item({
-      ...formData,
+      title: title.trim(),
+      description: (formData.get('description') as string || '').trim(),
+      price: price,
+      category: category.trim(),
+      condition: condition.trim(),
+      city: city.trim(),
+      area: (formData.get('area') as string || '').trim(),
+      phone: phone.trim(),
+      contactMethod: contactMethod.trim(),
+      images: images,
       sellerId: realUserId,
       sellerEmail: decodedToken.email,
       sellerName: decodedToken.name
+      // status: 'active' is automatically set by the schema default
     });
 
+    console.log('📄 Item document before save:', {
+      title: newItem.title,
+      status: newItem.status, // Check if status exists
+      hasStatus: 'status' in newItem
+    });
+
+    console.log('💿 Saving to database...');
     await newItem.save();
     
-    console.log('✅ Item created with real user ID:', realUserId);
+    console.log('✅ Item created successfully:', {
+      id: newItem._id,
+      title: newItem.title,
+      seller: newItem.sellerName,
+      price: newItem.price,
+      status: newItem.status // Check final status
+    });
 
-    return NextResponse.json({ success: true, item: newItem });
+    return NextResponse.json({ 
+      success: true, 
+      item: {
+        _id: newItem._id,
+        title: newItem.title,
+        price: newItem.price,
+        category: newItem.category,
+        sellerName: newItem.sellerName,
+        status: newItem.status
+      }
+    });
 
   } catch (error) {
-    console.error('Error creating item:', error);
-    return NextResponse.json({ error: 'Failed to create item' }, { status: 500 });
+    console.error('❌ Error creating item:', error);
+    
+    // More detailed error logging
+    if (error instanceof Error) {
+      console.error('🔍 Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+    }
+    
+    return NextResponse.json({ 
+      success: false,
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

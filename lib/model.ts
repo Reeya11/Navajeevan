@@ -26,9 +26,24 @@ const itemSchema = new mongoose.Schema({
   sellerId: String,
   sellerName: String,
   sellerEmail: String,
+  // ADD THESE NEW FIELDS FOR SOLD TRACKING:
+  status: { 
+    type: String, 
+    default: 'active', // active, sold
+    enum: ['active', 'sold'] // Only allow these values
+  },
+  soldAt: { 
+    type: Date 
+  },
+  soldTo: { 
+    type: String // buyer's user ID
+  },
+  soldToName: { 
+    type: String // buyer's name
+  },
+  transactionId: { 
+    type: String // payment transaction ID
+  },
   createdAt: { type: Date, default: Date.now }
 });
-
-// Export models
-export const User = mongoose.models.User || mongoose.model('User', userSchema);
-export const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
+export default mongoose.models.Item || mongoose.model('Item', itemSchema);

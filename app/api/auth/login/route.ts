@@ -56,7 +56,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Generate JWT token
-    const token = signToken(user._id.toString());
+    const token = jwt.sign(
+  {
+    userId: user._id.toString(),
+    email: user.email,
+    name: user.name
+  },
+  process.env.JWT_SECRET as jwt.Secret,
+  {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  } as jwt.SignOptions
+);
 
     // 5. Create the response with HTTP-only cookie
     const response = NextResponse.json(
@@ -71,7 +81,7 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
 
-    response.cookies.set('token', token, {
+    response.cookies.set('auth-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',

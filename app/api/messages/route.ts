@@ -25,16 +25,38 @@ const messageSchema = new mongoose.Schema({
 const Message = mongoose.models.Message || mongoose.model('Message', messageSchema);
 
 // GET: Fetch user's conversations
+  // GET: Fetch ONLY current user's conversations
 export async function GET(request: NextRequest) {
   try {
+    // Get current user from auth token
+    const cookieHeader = request.headers.get('cookie');
+    const tokenCookie = cookieHeader?.split(';').find(c => c.trim().startsWith('auth-token='));
+    const token = tokenCookie?.split('=')[1];
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify token and get user ID
+    const jwt = require('jsonwebtoken');
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET!);
+    const currentUserId = decodedToken.userId;
+
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(process.env.MONGODB_URI!);
     }
 
-    // For now, return mock data - we'll make it user-specific later
-    const conversations = await Message.find()
-      .sort({ updatedAt: -1 })
-      .limit(10);
+    // CRITICAL: Only return conversations where current user is either buyer OR seller
+    const conversations = await Message.find({
+      $or: [
+        { buyerId: currentUserId },   // User is the buyer
+        { sellerId: currentUserId }   // User is the seller
+      ]
+    })
+    .sort({ updatedAt: -1 })
+    .limit(20);
+
+    console.log(`🔍 Found ${conversations.length} conversations for user ${currentUserId}`);
 
     return NextResponse.json(conversations);
 

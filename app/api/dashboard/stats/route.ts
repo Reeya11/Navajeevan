@@ -1,10 +1,10 @@
-// app/api/dashboard/stats/route.ts - FIXED
+// app/api/dashboard/stats/route.ts - UPDATED WITH SOLD ITEMS DATA
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 
-// Connect to your existing item schema
+// Connect to your existing item schema (include sold fields)
 const itemSchema = new mongoose.Schema({
   title: String,
   description: String,
@@ -21,6 +21,12 @@ const itemSchema = new mongoose.Schema({
   sellerEmail: String,
   status: String,
   views: Number,
+  soldAt: Date,
+  soldTo: String,
+  soldToName: String,
+  transactionId: String,
+  paymentProvider: String,
+  paymentAmount: Number,
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -88,39 +94,52 @@ export async function GET(request: NextRequest) {
 
     console.log('📊 Fetching stats for user:', realUserId);
 
-    // Get stats from database using REAL user ID
-    const activeListings = await Item.countDocuments({ 
-      sellerId: realUserId
-      // Removed status filter since your schema might not have 'status' field
-    });
+    // Get all user's items
+    const userItems = await Item.find({ sellerId: realUserId });
+    
+    // Calculate stats
+    const activeListings = userItems.filter(item => 
+      item.status !== 'sold' && item.status !== 'inactive'
+    ).length;
 
-    const totalViews = await Item.aggregate([
-      { $match: { sellerId: realUserId } },
-      { $group: { _id: null, total: { $sum: { $ifNull: ['$views', 0] } } } }
-    ]);
+    const soldItems = userItems.filter(item => item.status === 'sold');
+    const itemsSold = soldItems.length;
+    const totalSales = soldItems.reduce((sum, item) => sum + (item.price || 0), 0);
 
-    // For earnings, we'll use price of active listings since you might not have 'sold' status
-    const totalListingsValue = await Item.aggregate([
-      { $match: { sellerId: realUserId } },
-      { $group: { _id: null, total: { $sum: { $ifNull: ['$price', 0] } } } }
-    ]);
+    const totalViews = userItems.reduce((sum, item) => sum + (item.views || 0), 0);
+    
+    const totalListingsValue = userItems
+      .filter(item => item.status !== 'sold')
+      .reduce((sum, item) => sum + (item.price || 0), 0);
 
     // For messages, you'll need to implement this based on your messages schema
     const unreadMessages = 0; // Placeholder
 
     const stats = {
       activeListings,
-      totalViews: totalViews[0]?.total || 0,
-      totalListingsValue: totalListingsValue[0]?.total || 0,
-      unreadMessages
+      totalViews,
+      totalListingsValue,
+      unreadMessages,
+      totalSales,
+      itemsSold
     };
 
-    console.log('✅ Dashboard stats:', stats);
+    console.log('✅ Dashboard stats:', {
+      activeListings,
+      itemsSold,
+      totalSales,
+      totalViews,
+      totalListingsValue,
+      unreadMessages
+    });
 
     return NextResponse.json(stats);
 
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

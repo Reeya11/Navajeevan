@@ -16,6 +16,11 @@ const itemSchema = new mongoose.Schema({
   images: [String],
   sellerId: String,
   sellerName: String,
+  status: { type: String, default: 'active' }, // ← ADDED STATUS FIELD
+  soldAt: Date, // ← ADDED SOLD TRACKING
+  soldTo: String, // ← ADDED SOLD TRACKING
+  soldToName: String, // ← ADDED SOLD TRACKING
+  transactionId: String, // ← ADDED SOLD TRACKING
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -30,8 +35,8 @@ async function getProductsFromDatabase(filters: any = {}) {
 
     console.log('🔍 Building Mongoose query with filters:', filters);
 
-    // Build Mongoose query
-    let query = Item.find();
+    // Build Mongoose query - ADD STATUS FILTER HERE
+    let query = Item.find({ status: 'active' }); // ← CRITICAL: Only show active items
 
     if (filters.category) {
       query = query.where('category').equals(filters.category);

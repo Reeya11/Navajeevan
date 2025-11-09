@@ -15,6 +15,7 @@ const itemSchema = new mongoose.Schema({
   images: [String],
   sellerId: String,
   sellerName: String,
+  status: { type: String, default: 'active' },
   createdAt: { type: Date, default: Date.now }
 });
 

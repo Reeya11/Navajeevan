@@ -35,7 +35,24 @@ export default function ItemPage({ params }: PageProps) {
   const [showPayment, setShowPayment] = useState(false);
   const [itemId, setItemId] = useState<string>("");
   const [isSaved, setIsSaved] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [isOwnItem, setIsOwnItem] = useState(false); 
 
+  useEffect(() => {
+  const fetchUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+        console.log('👤 User loaded:', userData);
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  };
+  fetchUser();
+}, []);
   // Await params in useEffect
   useEffect(() => {
     const fetchParams = async () => {
@@ -45,25 +62,34 @@ export default function ItemPage({ params }: PageProps) {
 
     fetchParams();
   }, [params]);
-  useEffect(() => {
-    if (!item) return;
 
-    const checkIfSaved = async () => {
+  // Add this useEffect to fetch user data
+  useEffect(() => {
+    const fetchUser = async () => {
       try {
-        const response = await fetch("/api/dashboard/saved-items");
+        const response = await fetch('/api/auth/me');
         if (response.ok) {
-          const data = await response.json();
-          const savedItemIds =
-            data.savedItems?.map((saved: any) => saved._id) || [];
-          setIsSaved(savedItemIds.includes(item._id));
+          const userData = await response.json();
+          setUser(userData);
         }
       } catch (error) {
-        console.error("Error checking saved status:", error);
+        console.error('Error fetching user:', error);
       }
     };
+    fetchUser();
+  }, []);
 
-    checkIfSaved();
-  }, [item]);
+  // Add this useEffect to check if it's user's own item
+  useEffect(() => {
+    if (user && item) {
+      setIsOwnItem(user.id === item.sellerId);
+      console.log('🔍 Ownership check:', {
+        userId: user.id,
+        sellerId: item.sellerId,
+        isOwnItem: user.id === item.sellerId
+      });
+    }
+  }, [user, item]);
 
   // Fetch item data when itemId is available
   useEffect(() => {
@@ -88,6 +114,26 @@ export default function ItemPage({ params }: PageProps) {
 
     fetchItem();
   }, [itemId]);
+
+  useEffect(() => {
+    if (!item) return;
+
+    const checkIfSaved = async () => {
+      try {
+        const response = await fetch("/api/dashboard/saved-items");
+        if (response.ok) {
+          const data = await response.json();
+          const savedItemIds =
+            data.savedItems?.map((saved: any) => saved._id) || [];
+          setIsSaved(savedItemIds.includes(item._id));
+        }
+      } catch (error) {
+        console.error("Error checking saved status:", error);
+      }
+    };
+
+    checkIfSaved();
+  }, [item]);
 
   useEffect(() => {
     const checkSavedStatus = async () => {
@@ -126,54 +172,61 @@ export default function ItemPage({ params }: PageProps) {
   };
 
   const handleMessageSeller = async () => {
-    if (!item) return;
+  if (!item || !user) { // ← Check if user data is loaded
+    alert("Please wait while we load your information...");
+    return;
+  }
 
-    setIsStartingConversation(true);
+  setIsStartingConversation(true);
 
-    // For now, we'll use mock user data - replace with real auth later
-    const currentUser = {
-      id: "current-user-id",
-      name: "Current User",
-      email: "user@example.com",
-    };
-
-    const initialMessage = `Hi! I'm interested in your "${item.title}". Is it still available?`;
-
-    try {
-      const response = await fetch("/api/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          itemId: item._id,
-          itemTitle: item.title,
-          sellerId: item.sellerId,
-          sellerName: item.sellerName,
-          buyerId: currentUser.id,
-          buyerName: currentUser.name,
-          buyerEmail: currentUser.email,
-          initialMessage: initialMessage,
-        }),
-      });
-
-      if (response.ok) {
-        const conversation = await response.json();
-        // Redirect to messages page
-        window.location.href = `/messages`;
-      } else {
-        const errorData = await response.json();
-        alert(
-          errorData.error || "Failed to start conversation. Please try again."
-        );
-      }
-    } catch (error) {
-      console.error("Error starting conversation:", error);
-      alert("Error starting conversation. Please try again.");
-    } finally {
-      setIsStartingConversation(false);
-    }
+  // USE REAL USER DATA - no more mock data! 🎉
+  const currentUser = {
+    id: user.id,           // ← Real user ID from auth
+    name: user.name,       // ← Real user name
+    email: user.email      // ← Real user email
   };
+
+  console.log('🔍 Starting conversation with real user:', currentUser);
+
+  const initialMessage = `Hi! I'm interested in your "${item.title}". Is it still available?`;
+
+  try {
+    const response = await fetch("/api/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        itemId: item._id,
+        itemTitle: item.title,
+        sellerId: item.sellerId,
+        sellerName: item.sellerName,
+        buyerId: currentUser.id,      // ← REAL buyer ID
+        buyerName: currentUser.name,  // ← REAL buyer name  
+        buyerEmail: currentUser.email, // ← REAL buyer email
+        initialMessage: initialMessage,
+      }),
+    });
+
+    if (response.ok) {
+      const conversation = await response.json();
+      console.log('✅ Conversation started:', conversation);
+      // Redirect to messages page
+      window.location.href = `/messages`;
+    } else {
+      const errorData = await response.json();
+      console.error('❌ Failed to start conversation:', errorData);
+      alert(
+        errorData.error || "Failed to start conversation. Please try again."
+      );
+    }
+  } catch (error) {
+    console.error("Error starting conversation:", error);
+    alert("Error starting conversation. Please try again.");
+  } finally {
+    setIsStartingConversation(false);
+  }
+};
 
   const handleSaveItem = async () => {
     if (!item) return;
@@ -224,13 +277,54 @@ export default function ItemPage({ params }: PageProps) {
     }
   };
 
-  // Payment handlers
-  const handlePaymentSuccess = (transactionId: string) => {
+  // REPLACE the current handlePaymentSuccess function with this:
+  const handlePaymentSuccess = async (transactionId: string) => {
     console.log("Payment successful! Transaction ID:", transactionId);
-    alert(
-      `🎉 Payment Successful!\nTransaction ID: ${transactionId}\nThe seller will contact you for delivery.`
-    );
-    setShowPayment(false);
+
+    try {
+      if (!item) {
+        alert("❌ Item data not available");
+        return;
+      }
+
+      // Mark item as sold
+      const response = await fetch(`/api/items/${item._id}/sold`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          transactionId: transactionId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log("✅ Item marked as sold:", data);
+        alert(
+          `🎉 Payment Successful!\nTransaction ID: ${transactionId}\nItem has been marked as sold and will be removed from listings.`
+        );
+        setShowPayment(false);
+
+        // Redirect to browse page after a short delay
+        setTimeout(() => {
+          window.location.href = "/browse";
+        }, 3000);
+      } else {
+        console.error("❌ Failed to mark item as sold:", data);
+        alert(
+          `🎉 Payment Successful!\nTransaction ID: ${transactionId}\nBut failed to update item status: ${data.error}\nThe seller will contact you for delivery.`
+        );
+        setShowPayment(false);
+      }
+    } catch (error) {
+      console.error("❌ Error marking item as sold:", error);
+      alert(
+        `🎉 Payment Successful!\nTransaction ID: ${transactionId}\nThe seller will contact you for delivery.`
+      );
+      setShowPayment(false);
+    }
   };
 
   const handlePaymentFailure = (error: string) => {
@@ -312,6 +406,15 @@ export default function ItemPage({ params }: PageProps) {
                 NPR {item.price}
               </p>
 
+              {/* Add ownership message here */}
+              {isOwnItem && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-blue-700 text-sm text-center">
+                    🛑 This is your own listing. You cannot purchase your own items.
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                 <span>
                   Condition:{" "}
@@ -354,13 +457,18 @@ export default function ItemPage({ params }: PageProps) {
                 <h2 className="text-xl font-semibold mb-4">Purchase Options</h2>
 
                 <div className="space-y-3">
-                  {/* Buy Now Button */}
+                  {/* Buy Now Button - UPDATED */}
                   <button
-                    className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
-                    onClick={() => setShowPayment(true)}
+                    className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-lg font-semibold transition-colors ${
+                      isOwnItem
+                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                    onClick={() => !isOwnItem && setShowPayment(true)}
+                    disabled={isOwnItem}
                   >
                     <CreditCard className="h-5 w-5" />
-                    Buy Now (Secure Payment)
+                    {isOwnItem ? 'Your Own Item' : 'Buy Now (Secure Payment)'}
                   </button>
 
                   {/* Message Seller Button */}

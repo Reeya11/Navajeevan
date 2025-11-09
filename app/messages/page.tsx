@@ -1,4 +1,3 @@
-// app/messages/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,11 +17,19 @@ interface Conversation {
   _id: string;
   itemId: string;
   itemTitle: string;
+  sellerId: string;
   sellerName: string;
+  buyerId: string;
   buyerName: string;
   messages: Message[];
   unreadCount: number;
   updatedAt: string;
+}
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
 }
 
 export default function MessagesPage() {
@@ -30,6 +37,24 @@ export default function MessagesPage() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Fetch current user
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const userData = await response.json();
+          setCurrentUser(userData);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user:', error);
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
 
   // Fetch conversations
   useEffect(() => {
@@ -70,7 +95,7 @@ export default function MessagesPage() {
   }, [selectedConversation?._id]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() || !selectedConversation || !currentUser) return;
 
     try {
       const response = await fetch(`/api/messages/${selectedConversation._id}`, {
@@ -79,8 +104,8 @@ export default function MessagesPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          senderId: 'current-user-id', // TODO: Replace with actual user ID
-          senderName: 'Current User',  // TODO: Replace with actual user name
+          senderId: currentUser.id,      // ← REAL user ID
+          senderName: currentUser.name,  // ← REAL user name
           text: newMessage
         }),
       });
@@ -102,6 +127,20 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to send message:', error);
     }
+  };
+
+  // Helper function to get other person's name
+  const getOtherPersonName = (conversation: Conversation) => {
+    if (!currentUser) return 'Unknown User';
+    
+    return currentUser.id === conversation.buyerId 
+      ? conversation.sellerName 
+      : conversation.buyerName;
+  };
+
+  // Helper function to check if message is from current user
+  const isMessageFromCurrentUser = (message: Message) => {
+    return currentUser && message.senderId === currentUser.id;
   };
 
   if (isLoading) {
@@ -153,7 +192,7 @@ export default function MessagesPage() {
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground mb-1">
-                    with {conversation.sellerName === 'Current User' ? conversation.buyerName : conversation.sellerName}
+                    with {getOtherPersonName(conversation)}
                   </p>
                   <p className="text-sm truncate">
                     {conversation.messages[conversation.messages.length - 1]?.text}
@@ -174,7 +213,7 @@ export default function MessagesPage() {
               <div className="p-4 border-b bg-muted/50">
                 <h2 className="font-semibold">{selectedConversation.itemTitle}</h2>
                 <p className="text-sm text-muted-foreground">
-                  with {selectedConversation.sellerName === 'Current User' ? selectedConversation.buyerName : selectedConversation.sellerName}
+                  with {getOtherPersonName(selectedConversation)}
                 </p>
               </div>
               
@@ -184,16 +223,19 @@ export default function MessagesPage() {
                   {selectedConversation.messages.map((message, index) => (
                     <div 
                       key={index}
-                      className={`flex ${message.senderName === 'Current User' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex ${isMessageFromCurrentUser(message) ? 'justify-end' : 'justify-start'}`}
                     >
                       <div className={`rounded-lg p-3 max-w-[70%] ${
-                        message.senderName === 'Current User' 
+                        isMessageFromCurrentUser(message) 
                           ? 'bg-green-600 text-white' 
                           : 'bg-muted'
                       }`}>
+                        <p className="text-sm font-medium mb-1">
+                          {isMessageFromCurrentUser(message) ? 'You' : message.senderName}
+                        </p>
                         <p className="text-sm">{message.text}</p>
                         <p className={`text-xs mt-1 ${
-                          message.senderName === 'Current User' 
+                          isMessageFromCurrentUser(message) 
                             ? 'text-white/70' 
                             : 'text-muted-foreground'
                         }`}>
@@ -216,7 +258,7 @@ export default function MessagesPage() {
                   />
                   <Button 
                     onClick={sendMessage} 
-                    disabled={!newMessage.trim()}
+                    disabled={!newMessage.trim() || !currentUser}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     <Send className="h-4 w-4" />
