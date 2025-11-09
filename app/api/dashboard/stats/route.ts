@@ -1,10 +1,10 @@
-// app/api/dashboard/stats/route.ts - UPDATED WITH SOLD ITEMS DATA
+// app/api/dashboard/stats/route.ts - UPDATED WITH REAL MESSAGES
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 
-// Connect to your existing item schema (include sold fields)
+// Connect to your existing item schema
 const itemSchema = new mongoose.Schema({
   title: String,
   description: String,
@@ -40,6 +40,28 @@ const userSchema = new mongoose.Schema({
 });
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
+
+// **NEW: Message schema for counting unread messages**
+const messageSchema = new mongoose.Schema({
+  itemId: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', required: true },
+  itemTitle: String,
+  sellerId: { type: String, required: true },
+  sellerName: String,
+  buyerId: { type: String, required: true },
+  buyerName: String,
+  buyerEmail: String,
+  messages: [{
+    senderId: String,
+    senderName: String,
+    text: String,
+    timestamp: { type: Date, default: Date.now },
+    read: { type: Boolean, default: false }
+  }],
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const Message = mongoose.models.Message || mongoose.model('Message', messageSchema);
 
 // JWT verification function
 function verifyToken(token: string): any {
@@ -89,7 +111,7 @@ export async function GET(request: NextRequest) {
     // Connect to DB
     await connectDB();
 
-    // CRITICAL FIX: Get real user ID instead of hardcoded value
+    // Get real user ID
     const realUserId = await getRealUserId(token);
 
     console.log('📊 Fetching stats for user:', realUserId);
@@ -112,25 +134,48 @@ export async function GET(request: NextRequest) {
       .filter(item => item.status !== 'sold')
       .reduce((sum, item) => sum + (item.price || 0), 0);
 
-    // For messages, you'll need to implement this based on your messages schema
-    const unreadMessages = 0; // Placeholder
+    // **NEW: REAL UNREAD MESSAGES COUNT** 🎉
+    const unreadMessages = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { sellerId: realUserId },
+            { buyerId: realUserId }
+          ]
+        }
+      },
+      {
+        $unwind: "$messages"
+      },
+      {
+        $match: {
+          "messages.read": false,
+          "messages.senderId": { $ne: realUserId } // Messages NOT from current user
+        }
+      },
+      {
+        $count: "unreadCount"
+      }
+    ]);
+
+    const realUnreadCount = unreadMessages[0]?.unreadCount || 0;
 
     const stats = {
       activeListings,
       totalViews,
       totalListingsValue,
-      unreadMessages,
+      unreadMessages: realUnreadCount, // ← REAL COUNT! 🎉
       totalSales,
       itemsSold
     };
 
-    console.log('✅ Dashboard stats:', {
+    console.log('✅ Dashboard stats with REAL messages:', {
       activeListings,
       itemsSold,
       totalSales,
       totalViews,
       totalListingsValue,
-      unreadMessages
+      unreadMessages: realUnreadCount
     });
 
     return NextResponse.json(stats);

@@ -1,3 +1,4 @@
+// app/messages/page.tsx - FULLY FIXED WITH PROPER UNREAD HANDLING
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -94,6 +95,83 @@ export default function MessagesPage() {
     }
   }, [selectedConversation?._id]);
 
+  // NEW: Mark messages as read when conversation is opened
+  const markMessagesAsRead = async (conversation: Conversation) => {
+    if (!currentUser) return;
+
+    try {
+      // Find messages that are unread AND not sent by current user
+      const unreadMessages = conversation.messages.filter(
+        message => !message.read && message.senderId !== currentUser.id
+      );
+
+      if (unreadMessages.length > 0) {
+        console.log(`📖 Marking ${unreadMessages.length} messages as read`);
+        
+        // Update messages as read in the database
+        const response = await fetch(`/api/messages/${conversation._id}/read`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            readerId: currentUser.id
+          }),
+        });
+
+        if (response.ok) {
+          const updatedConversation = await response.json();
+          setSelectedConversation(updatedConversation);
+          
+          // Update conversations list
+          setConversations(prev => 
+            prev.map(conv => 
+              conv._id === updatedConversation._id 
+                ? updatedConversation 
+                : conv
+            )
+          );
+          
+          console.log('✅ Messages marked as read');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to mark messages as read:', error);
+    }
+  };
+
+  // Helper function to get other person's name
+  const getOtherPersonName = (conversation: Conversation) => {
+    if (!currentUser) return 'Unknown User';
+    
+    return currentUser.id === conversation.buyerId 
+      ? conversation.sellerName 
+      : conversation.buyerName;
+  };
+
+  // Helper function to check if message is from current user
+  const isMessageFromCurrentUser = (message: Message) => {
+    return currentUser && message.senderId === currentUser.id;
+  };
+
+  // Check if conversation has unread messages
+  const hasUnreadMessages = (conversation: Conversation) => {
+    if (!currentUser) return false;
+    
+    return conversation.messages.some(message => 
+      !message.read && message.senderId !== currentUser.id
+    );
+  };
+
+  // Count unread messages in a conversation
+  const getUnreadCount = (conversation: Conversation) => {
+    if (!currentUser) return 0;
+    
+    return conversation.messages.filter(message => 
+      !message.read && message.senderId !== currentUser.id
+    ).length;
+  };
+
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !currentUser) return;
 
@@ -104,8 +182,8 @@ export default function MessagesPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          senderId: currentUser.id,      // ← REAL user ID
-          senderName: currentUser.name,  // ← REAL user name
+          senderId: currentUser.id,
+          senderName: currentUser.name,
           text: newMessage
         }),
       });
@@ -127,20 +205,6 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Failed to send message:', error);
     }
-  };
-
-  // Helper function to get other person's name
-  const getOtherPersonName = (conversation: Conversation) => {
-    if (!currentUser) return 'Unknown User';
-    
-    return currentUser.id === conversation.buyerId 
-      ? conversation.sellerName 
-      : conversation.buyerName;
-  };
-
-  // Helper function to check if message is from current user
-  const isMessageFromCurrentUser = (message: Message) => {
-    return currentUser && message.senderId === currentUser.id;
   };
 
   if (isLoading) {
@@ -175,33 +239,50 @@ export default function MessagesPage() {
                 <p>No messages yet</p>
               </div>
             ) : (
-              conversations.map((conversation) => (
-                <div
-                  key={conversation._id}
-                  className={`p-4 border-b cursor-pointer hover:bg-accent ${
-                    selectedConversation?._id === conversation._id ? 'bg-accent' : ''
-                  }`}
-                  onClick={() => setSelectedConversation(conversation)}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-sm">{conversation.itemTitle}</h3>
-                    {conversation.unreadCount > 0 && (
-                      <span className="bg-green-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
-                        {conversation.unreadCount}
-                      </span>
-                    )}
+              conversations.map((conversation) => {
+                const unreadCount = getUnreadCount(conversation);
+                const hasUnread = hasUnreadMessages(conversation);
+                
+                return (
+                  <div
+                    key={conversation._id}
+                    className={`p-4 border-b cursor-pointer hover:bg-accent ${
+                      selectedConversation?._id === conversation._id ? 'bg-accent' : ''
+                    }`}
+                    onClick={() => {
+                      setSelectedConversation(conversation);
+                      markMessagesAsRead(conversation); // ← MARK AS READ WHEN OPENED!
+                    }}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      {/* BOLD TITLE for unread conversations */}
+                      <h3 className={`text-sm ${hasUnread ? 'font-bold text-foreground' : 'font-semibold'}`}>
+                        {conversation.itemTitle}
+                      </h3>
+                      {/* Unread badge - ONLY shows if there are unread messages */}
+                      {unreadCount > 0 && (
+                        <span className="bg-green-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* BOLD "with [person]" for unread conversations */}
+                    <p className={`text-sm mb-1 ${hasUnread ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                      with {getOtherPersonName(conversation)}
+                    </p>
+                    
+                    {/* BOLD last message for unread conversations */}
+                    <p className={`text-sm truncate ${hasUnread ? 'font-medium' : ''}`}>
+                      {conversation.messages[conversation.messages.length - 1]?.text}
+                    </p>
+                    
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(conversation.updatedAt).toLocaleDateString()}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-1">
-                    with {getOtherPersonName(conversation)}
-                  </p>
-                  <p className="text-sm truncate">
-                    {conversation.messages[conversation.messages.length - 1]?.text}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(conversation.updatedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -230,9 +311,14 @@ export default function MessagesPage() {
                           ? 'bg-green-600 text-white' 
                           : 'bg-muted'
                       }`}>
-                        <p className="text-sm font-medium mb-1">
-                          {isMessageFromCurrentUser(message) ? 'You' : message.senderName}
-                        </p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-medium">
+                            {isMessageFromCurrentUser(message) ? 'You' : message.senderName}
+                          </p>
+                          {!message.read && !isMessageFromCurrentUser(message) && (
+                            <span className="text-xs bg-blue-500 text-white px-1 rounded">unread</span>
+                          )}
+                        </div>
                         <p className="text-sm">{message.text}</p>
                         <p className={`text-xs mt-1 ${
                           isMessageFromCurrentUser(message) 

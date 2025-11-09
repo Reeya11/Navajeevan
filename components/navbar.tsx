@@ -1,4 +1,4 @@
-// components/navbar.tsx
+// components/navbar.tsx - FIXED VERSION
 'use client';
 
 import Link from "next/link"
@@ -6,14 +6,45 @@ import { useRouter, usePathname } from "next/navigation"
 import { MessageCircle, User, Package, LogOut, Bell, Settings, ArrowLeft, Home, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
-import { useState } from "react"
+import { useState, useEffect } from "react" // ← Added useEffect
 
 export function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
   const { user, logout, isLoading } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [savedItemsCount, setSavedItemsCount] = useState(3)
+  const [savedItemsCount, setSavedItemsCount] = useState(0) // ← Start with 0
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0) // ← Added messages count
+
+  // NEW: Fetch counts from APIs
+  useEffect(() => {
+    if (!user) return; // Only fetch if user is logged in
+
+    const fetchCounts = async () => {
+      try {
+        const [favoritesRes, statsRes] = await Promise.all([
+          fetch('/api/dashboard/favorites-count'),
+          fetch('/api/dashboard/stats')
+        ]);
+        
+        if (favoritesRes.ok) {
+          const favoritesData = await favoritesRes.json();
+          setSavedItemsCount(favoritesData.count || 0);
+        }
+        
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setUnreadMessagesCount(statsData.unreadMessages || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch counts:', error);
+      }
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000); // Update every 30 seconds
+    return () => clearInterval(interval);
+  }, [user]); // Re-fetch when user changes
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -110,12 +141,18 @@ export function Navbar() {
                 Dashboard
               </Link>
               
+              {/* MESSAGES WITH BOUNCY BADGE */}
               <Link
                 href="/messages"
-                className={`flex items-center space-x-1 transition-colors ${pathname === '/messages' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
+                className="relative flex items-center space-x-1 transition-colors group text-foreground hover:text-accent"
               >
-                <MessageCircle className="h-4 w-4" />
+                <MessageCircle className="h-4 w-4 group-hover:scale-110 transition-transform" />
                 <span>Messages</span>
+                {unreadMessagesCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-gradient-to-br from-green-500 to-emerald-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow-lg animate-bounce ring-1 ring-white">
+                    {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                  </span>
+                )}
               </Link>
 
               <Link 
@@ -132,18 +169,18 @@ export function Navbar() {
             {user ? (
               // USER IS LOGGED IN - Show full menu
               <div className="flex items-center gap-4">
-                {/* FAVORITES/SAVED ITEMS */}
+                {/* FAVORITES/SAVED ITEMS WITH BOUNCY BADGE */}
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="relative text-amber-700 hover:text-amber-800 hover:bg-amber-50"
+                  className="relative text-amber-700 hover:text-amber-800 hover:bg-amber-50 group"
                   onClick={() => router.push('/favorites')}
                   aria-label="Saved items"
                 >
-                  <Heart className="h-5 w-5" />
+                  <Heart className="h-5 w-5 group-hover:scale-110 transition-transform" />
                   {savedItemsCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-amber-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {savedItemsCount}
+                    <span className="absolute -top-1 -right-1 bg-gradient-to-br from-pink-500 to-rose-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-bounce ring-1 ring-white">
+                      {savedItemsCount > 9 ? '9+' : savedItemsCount}
                     </span>
                   )}
                 </Button>

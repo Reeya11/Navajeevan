@@ -190,7 +190,7 @@ export default function SellItemPage() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm font-medium text-foreground">Listing Progress</div>
-              <div className="text-sm text-muted-foreground">Step 1 of 3</div>
+              <div className="text-sm text-muted-foreground">Step 1 of 1</div>
             </div>
             <div className="w-full bg-muted rounded-full h-2">
               <div className="bg-green-600 h-2 rounded-full" style={{ width: '33%' }}></div>
@@ -225,7 +225,7 @@ export default function SellItemPage() {
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-accent transition-colors">
                     <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                     <span className="text-sm text-muted-foreground text-center">
-                      Add Photos ({images.length}/8)
+                      Add Photos ({images.length}/1)
                     </span>
                     <input
                       ref={fileInputRef}
@@ -239,7 +239,7 @@ export default function SellItemPage() {
                 )}
               </div>
               <p className="text-sm text-muted-foreground">
-                Add up to 8 photos. Include different angles and any flaws.
+                Add a photo. Highlight flaws(if any).
               </p>
             </div>
 
@@ -266,7 +266,6 @@ export default function SellItemPage() {
                     Price (NPR) *
                   </label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <input
                       type="number"
                       id="price"
