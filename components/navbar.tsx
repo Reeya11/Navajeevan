@@ -96,7 +96,7 @@ export function Navbar() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleBack}
+                //onClick={handleBack}
                 className="h-8 w-8 rounded-full"
                 aria-label="Go back"
               >
@@ -109,7 +109,7 @@ export function Navbar() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => router.push('/')}
+                //onClick={() => router.push('/')}
                 className="h-8 w-8 rounded-full"
                 aria-label="Go to home"
               >
@@ -118,7 +118,7 @@ export function Navbar() {
             )}
 
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href=" " className="flex items-center space-x-2">
               <Package className="h-8 w-8 text-accent" />
               <span className="text-xl font-bold text-foreground hidden sm:block">NavaJeevan</span>
             </Link>
