@@ -44,6 +44,13 @@ export const baseCategories = [
     icon: '🏠',
     itemCount: 0
   },
+   {
+    id: 'sports', // ← ADDED SPORTS CATEGORY
+    name: 'Sports',
+    description: 'Sports equipment, fitness gear, and outdoor activities',
+    icon: '⚽',
+    itemCount: 0
+  },
   {
     id: 'other',
     name: 'Other',

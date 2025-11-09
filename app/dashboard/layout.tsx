@@ -10,7 +10,7 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Sidebar */}
+          {/* Sidebar
           <div className="md:w-64 flex-shrink-0">
             <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
             <nav className="space-y-2">
@@ -21,7 +21,7 @@ export default function DashboardLayout({
                 My Listings
               </Link>
             </nav>
-          </div>
+          </div> */}
           
           {/* Main Content */}
           <div className="flex-1">

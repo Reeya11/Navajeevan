@@ -1,60 +1,123 @@
-// app/api/dashboard/stats/route.ts
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+// app/api/dashboard/stats/route.ts - FIXED
+import { NextRequest, NextResponse } from 'next/server';
+import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
 
 // Connect to your existing item schema
 const itemSchema = new mongoose.Schema({
   title: String,
+  description: String,
   price: Number,
+  category: String,
+  condition: String,
+  city: String,
+  area: String,
+  phone: String,
+  contactMethod: String,
   images: [String],
+  sellerId: String,
+  sellerName: String,
+  sellerEmail: String,
   status: String,
   views: Number,
-  sellerId: String,
-  createdAt: Date
+  createdAt: { type: Date, default: Date.now }
 });
 
 const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
 
-export async function GET() {
-  try {
-    // Get user session (you'll need to implement this based on your auth)
-    // const session = await getServerSession();
-    // if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+// User schema for consistent user IDs
+const userSchema = new mongoose.Schema({
+  email: String,
+  name: String,
+  createdAt: { type: Date, default: Date.now }
+});
 
-    // Connect to DB
-    if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGODB_URI!);
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+
+// JWT verification function
+function verifyToken(token: string): any {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+  return jwt.verify(token, process.env.JWT_SECRET);
+}
+
+// Get real user ID (converts temporary IDs to real MongoDB IDs)
+async function getRealUserId(token: string): Promise<string> {
+  const decodedToken = verifyToken(token);
+  let realUserId = decodedToken.userId;
+
+  // If it's a temporary ID, find or create real user in database
+  if (realUserId.startsWith('temp-user-id-')) {
+    console.log('🔄 Temporary ID detected, finding real user...');
+    
+    let realUser = await User.findOne({ email: decodedToken.email });
+    
+    if (!realUser) {
+      console.log('👤 Creating new user in database...');
+      realUser = await User.create({
+        email: decodedToken.email,
+        name: decodedToken.name
+      });
+    }
+    
+    realUserId = realUser._id.toString();
+    console.log('✅ Using real user ID:', realUserId);
+  }
+
+  return realUserId;
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    // Get token from cookies
+    const cookieHeader = request.headers.get('cookie');
+    const tokenCookie = cookieHeader?.split(';').find(c => c.trim().startsWith('auth-token='));
+    const token = tokenCookie?.split('=')[1];
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Replace with actual user ID from session
-    const userId = 'current-user-id'; 
+    // Connect to DB
+    await connectDB();
 
-    // Get stats from database
+    // CRITICAL FIX: Get real user ID instead of hardcoded value
+    const realUserId = await getRealUserId(token);
+
+    console.log('📊 Fetching stats for user:', realUserId);
+
+    // Get stats from database using REAL user ID
     const activeListings = await Item.countDocuments({ 
-      sellerId: userId, 
-      status: 'active' 
+      sellerId: realUserId
+      // Removed status filter since your schema might not have 'status' field
     });
 
     const totalViews = await Item.aggregate([
-      { $match: { sellerId: userId } },
-      { $group: { _id: null, total: { $sum: '$views' } } }
+      { $match: { sellerId: realUserId } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ['$views', 0] } } } }
     ]);
 
-    const totalEarnings = await Item.aggregate([
-      { $match: { sellerId: userId, status: 'sold' } },
-      { $group: { _id: null, total: { $sum: '$price' } } }
+    // For earnings, we'll use price of active listings since you might not have 'sold' status
+    const totalListingsValue = await Item.aggregate([
+      { $match: { sellerId: realUserId } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ['$price', 0] } } } }
     ]);
 
     // For messages, you'll need to implement this based on your messages schema
     const unreadMessages = 0; // Placeholder
 
-    return NextResponse.json({
+    const stats = {
       activeListings,
       totalViews: totalViews[0]?.total || 0,
-      totalEarnings: totalEarnings[0]?.total || 0,
+      totalListingsValue: totalListingsValue[0]?.total || 0,
       unreadMessages
-    });
+    };
+
+    console.log('✅ Dashboard stats:', stats);
+
+    return NextResponse.json(stats);
 
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);

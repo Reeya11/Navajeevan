@@ -1,9 +1,9 @@
-// app/api/auth/callback/google/route.ts
+// app/api/auth/callback/google/route.ts - FIXED
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForTokens, getGoogleUserInfo } from '@/lib/google-auth';
 import { createAuthToken } from '@/lib/auth';
 import User from '@/models/User';
-import connect from '@/lib/mongodb';
+import connectDB from '@/lib/mongodb';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Connect to database
-    await connect();
+    await connectDB();
     console.log('✅ Connected to database');
 
     // Exchange code for tokens
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// SIMPLIFIED Helper function - works without the static method
+// FIXED Helper function - NO MORE TEMPORARY IDs
 async function findOrCreateUser(googleUser: any) {
   try {
     console.log('🔍 Looking for user in database with email:', googleUser.email);
@@ -96,7 +96,6 @@ async function findOrCreateUser(googleUser: any) {
       profilePicture: googleUser.picture || '',
       authProvider: 'google',
       emailVerified: true
-      // password field is optional - will be omitted automatically
     });
     
     const savedUser = await newUser.save();
@@ -109,13 +108,13 @@ async function findOrCreateUser(googleUser: any) {
     };
     
   } catch (error) {
-    console.error('❌ Database error, using fallback user:', error);
+    console.error('❌ Database error in findOrCreateUser:', error);
     
-    // Fallback: return basic user data without database
-    return {
-      id: 'temp-user-id-' + Date.now(),
-      email: googleUser.email,
-      name: googleUser.name
-    };
-  }
+    // CRITICAL FIX: Proper TypeScript error handling
+    if (error instanceof Error) {
+      throw new Error(`Failed to create user: ${error.message}`);
+    } else {
+      throw new Error('Failed to create user: Unknown error occurred');
+    }
+  }       
 }

@@ -1,10 +1,10 @@
 // app/item/[id]/page.tsx
-'use client';
+"use client";
 
-import { notFound } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { notFound } from "next/navigation";
+import { useState, useEffect } from "react";
 import { MessageCircle, Heart, CreditCard } from "lucide-react";
-import PaymentComponent from '@/components/PaymentComponent';
+import PaymentComponent from "@/components/PaymentComponent";
 
 // Define the item interface
 interface Item {
@@ -33,7 +33,8 @@ export default function ItemPage({ params }: PageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
-  const [itemId, setItemId] = useState<string>('');
+  const [itemId, setItemId] = useState<string>("");
+  const [isSaved, setIsSaved] = useState(false);
 
   // Await params in useEffect
   useEffect(() => {
@@ -41,9 +42,28 @@ export default function ItemPage({ params }: PageProps) {
       const resolvedParams = await params;
       setItemId(resolvedParams.id);
     };
-    
+
     fetchParams();
   }, [params]);
+  useEffect(() => {
+    if (!item) return;
+
+    const checkIfSaved = async () => {
+      try {
+        const response = await fetch("/api/dashboard/saved-items");
+        if (response.ok) {
+          const data = await response.json();
+          const savedItemIds =
+            data.savedItems?.map((saved: any) => saved._id) || [];
+          setIsSaved(savedItemIds.includes(item._id));
+        }
+      } catch (error) {
+        console.error("Error checking saved status:", error);
+      }
+    };
+
+    checkIfSaved();
+  }, [item]);
 
   // Fetch item data when itemId is available
   useEffect(() => {
@@ -59,7 +79,7 @@ export default function ItemPage({ params }: PageProps) {
           notFound();
         }
       } catch (error) {
-        console.error('Error fetching item:', error);
+        console.error("Error fetching item:", error);
         notFound();
       } finally {
         setIsLoading(false);
@@ -69,11 +89,37 @@ export default function ItemPage({ params }: PageProps) {
     fetchItem();
   }, [itemId]);
 
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      if (!item) return;
+
+      try {
+        const response = await fetch("/api/dashboard/saved-items");
+        if (response.ok) {
+          const data = await response.json();
+          console.log("📋 Saved items from API:", data.savedItems);
+
+          // Check if current item is in saved items
+          const isItemSaved = data.savedItems?.some(
+            (savedItem: any) => savedItem._id === item._id
+          );
+
+          console.log(`🔍 Item ${item._id} saved status:`, isItemSaved);
+          setIsSaved(!!isItemSaved);
+        }
+      } catch (error) {
+        console.error("Error checking saved status:", error);
+      }
+    };
+
+    checkSavedStatus();
+  }, [item]); // Run whenever item changes
+
   const handleContact = (contactMethod: string, phone: string) => {
-    if (contactMethod === 'whatsapp') {
-      window.open(`https://wa.me/${phone}`, '_blank');
-    } else if (contactMethod === 'phone') {
-      window.open(`tel:${phone}`, '_blank');
+    if (contactMethod === "whatsapp") {
+      window.open(`https://wa.me/${phone}`, "_blank");
+    } else if (contactMethod === "phone") {
+      window.open(`tel:${phone}`, "_blank");
     } else {
       alert(`Contact the seller at: ${phone}`);
     }
@@ -81,23 +127,23 @@ export default function ItemPage({ params }: PageProps) {
 
   const handleMessageSeller = async () => {
     if (!item) return;
-    
+
     setIsStartingConversation(true);
-    
+
     // For now, we'll use mock user data - replace with real auth later
     const currentUser = {
-      id: 'current-user-id',
-      name: 'Current User',
-      email: 'user@example.com'
+      id: "current-user-id",
+      name: "Current User",
+      email: "user@example.com",
     };
 
     const initialMessage = `Hi! I'm interested in your "${item.title}". Is it still available?`;
 
     try {
-      const response = await fetch('/api/messages', {
-        method: 'POST',
+      const response = await fetch("/api/messages", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           itemId: item._id,
@@ -107,7 +153,7 @@ export default function ItemPage({ params }: PageProps) {
           buyerId: currentUser.id,
           buyerName: currentUser.name,
           buyerEmail: currentUser.email,
-          initialMessage: initialMessage
+          initialMessage: initialMessage,
         }),
       });
 
@@ -117,30 +163,81 @@ export default function ItemPage({ params }: PageProps) {
         window.location.href = `/messages`;
       } else {
         const errorData = await response.json();
-        alert(errorData.error || 'Failed to start conversation. Please try again.');
+        alert(
+          errorData.error || "Failed to start conversation. Please try again."
+        );
       }
     } catch (error) {
-      console.error('Error starting conversation:', error);
-      alert('Error starting conversation. Please try again.');
+      console.error("Error starting conversation:", error);
+      alert("Error starting conversation. Please try again.");
     } finally {
       setIsStartingConversation(false);
     }
   };
 
-  const handleSaveItem = () => {
-    alert('Save feature coming soon!');
+  const handleSaveItem = async () => {
+    if (!item) return;
+
+    try {
+      if (isSaved) {
+        // UNSAVE: Item is currently saved, so remove it
+        console.log("🗑️ Removing item from saved:", item._id);
+        const response = await fetch(`/api/saved-items/${item._id}`, {
+          method: "DELETE",
+        });
+
+        if (response.ok) {
+          setIsSaved(false);
+          console.log("✅ Item removed from favorites");
+        } else {
+          const errorData = await response.json();
+          console.error("❌ Failed to remove:", errorData);
+          alert("❌ Failed to remove item from favorites");
+        }
+      } else {
+        // SAVE: Item is not saved, so save it
+        console.log("💾 Saving item:", item._id);
+        const response = await fetch("/api/saved-items", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ itemId: item._id }),
+        });
+
+        const data = await response.json();
+        console.log("📦 Save API response:", data);
+
+        if (response.ok) {
+          if (data.action === "saved" || data.action === "already_saved") {
+            setIsSaved(true);
+            console.log("✅ Item saved to favorites");
+          }
+        } else {
+          console.error("❌ Save failed:", data);
+          alert("❌ Failed to save item: " + (data.error || "Unknown error"));
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error toggling save:", error);
+      alert("❌ Error saving item. Please try again.");
+    }
   };
 
   // Payment handlers
   const handlePaymentSuccess = (transactionId: string) => {
-    console.log('Payment successful! Transaction ID:', transactionId);
-    alert(`🎉 Payment Successful!\nTransaction ID: ${transactionId}\nThe seller will contact you for delivery.`);
+    console.log("Payment successful! Transaction ID:", transactionId);
+    alert(
+      `🎉 Payment Successful!\nTransaction ID: ${transactionId}\nThe seller will contact you for delivery.`
+    );
     setShowPayment(false);
   };
 
   const handlePaymentFailure = (error: string) => {
-    console.error('Payment failed:', error);
-    alert(`❌ Payment Failed: ${error}\nPlease try again or contact the seller directly.`);
+    console.error("Payment failed:", error);
+    alert(
+      `❌ Payment Failed: ${error}\nPlease try again or contact the seller directly.`
+    );
   };
 
   if (isLoading) {
@@ -163,7 +260,10 @@ export default function ItemPage({ params }: PageProps) {
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav className="flex mb-8">
-          <a href="/browse" className="text-muted-foreground hover:text-foreground">
+          <a
+            href="/browse"
+            className="text-muted-foreground hover:text-foreground"
+          >
             Browse
           </a>
           <span className="mx-2 text-muted-foreground">/</span>
@@ -175,8 +275,8 @@ export default function ItemPage({ params }: PageProps) {
           <div className="space-y-6">
             <div className="bg-muted rounded-lg h-96 flex items-center justify-center">
               {item.images && item.images.length > 0 ? (
-                <img 
-                  src={item.images[0]} 
+                <img
+                  src={item.images[0]}
                   alt={item.title}
                   className="w-full h-full object-cover rounded-lg"
                 />
@@ -195,7 +295,8 @@ export default function ItemPage({ params }: PageProps) {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold mb-3">Location</h2>
               <p className="text-foreground">
-                📍 {item.city}{item.area ? `, ${item.area}` : ''}
+                📍 {item.city}
+                {item.area ? `, ${item.area}` : ""}
               </p>
             </div>
           </div>
@@ -210,10 +311,20 @@ export default function ItemPage({ params }: PageProps) {
               <p className="text-2xl font-semibold text-green-600 mb-4">
                 NPR {item.price}
               </p>
-              
+
               <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                <span>Condition: <strong className="text-foreground capitalize">{item.condition}</strong></span>
-                <span>Category: <strong className="text-foreground capitalize">{item.category}</strong></span>
+                <span>
+                  Condition:{" "}
+                  <strong className="text-foreground capitalize">
+                    {item.condition}
+                  </strong>
+                </span>
+                <span>
+                  Category:{" "}
+                  <strong className="text-foreground capitalize">
+                    {item.category}
+                  </strong>
+                </span>
               </div>
             </div>
 
@@ -222,7 +333,7 @@ export default function ItemPage({ params }: PageProps) {
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold">Secure Payment</h2>
-                  <button 
+                  <button
                     onClick={() => setShowPayment(false)}
                     className="text-gray-500 hover:text-gray-700"
                   >
@@ -241,10 +352,10 @@ export default function ItemPage({ params }: PageProps) {
               /* Action Buttons */
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-semibold mb-4">Purchase Options</h2>
-                
+
                 <div className="space-y-3">
                   {/* Buy Now Button */}
-                  <button 
+                  <button
                     className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
                     onClick={() => setShowPayment(true)}
                   >
@@ -253,30 +364,40 @@ export default function ItemPage({ params }: PageProps) {
                   </button>
 
                   {/* Message Seller Button */}
-                  <button 
+                  <button
                     className="w-full flex items-center justify-center gap-2 border border-green-600 text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-green-600 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleMessageSeller}
                     disabled={isStartingConversation}
                   >
                     <MessageCircle className="h-4 w-4" />
-                    {isStartingConversation ? 'Starting Conversation...' : 'Message Seller'}
+                    {isStartingConversation
+                      ? "Starting Conversation..."
+                      : "Message Seller"}
                   </button>
-                  
+
                   {/* Contact via Preferred Method Button */}
-                  <button 
+                  <button
                     className="w-full flex items-center justify-center gap-2 border border-blue-600 text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 hover:text-white transition-colors"
-                    onClick={() => handleContact(item.contactMethod, item.phone)}
+                    onClick={() =>
+                      handleContact(item.contactMethod, item.phone)
+                    }
                   >
                     Contact via {item.contactMethod}
                   </button>
-                  
+
                   {/* Save Item Button */}
-                  <button 
-                    className="w-full flex items-center justify-center gap-2 border border-border px-6 py-3 rounded-lg font-semibold hover:bg-accent transition-colors"
+                  <button
+                    className={`w-full flex items-center justify-center gap-2 border px-6 py-3 rounded-lg font-semibold transition-colors ${
+                      isSaved
+                        ? "border-amber-600 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                        : "border-border hover:bg-accent"
+                    }`}
                     onClick={handleSaveItem}
                   >
-                    <Heart className="h-4 w-4" />
-                    Save Item
+                    <Heart
+                      className={`h-4 w-4 ${isSaved ? "fill-amber-600" : ""}`}
+                    />
+                    {isSaved ? "Saved" : "Save Item"}
                   </button>
                 </div>
 
@@ -284,9 +405,11 @@ export default function ItemPage({ params }: PageProps) {
                 <div className="bg-gray-50 p-4 rounded-lg mt-4">
                   <p className="text-sm text-gray-600">
                     <strong>Seller Contact:</strong> {item.phone}
-                    {item.contactMethod === 'whatsapp' ? ' (WhatsApp)' : 
-                     item.contactMethod === 'phone' ? ' (Phone Call)' : 
-                     ' (Message)'}
+                    {item.contactMethod === "whatsapp"
+                      ? " (WhatsApp)"
+                      : item.contactMethod === "phone"
+                      ? " (Phone Call)"
+                      : " (Message)"}
                   </p>
                 </div>
               </div>
@@ -296,16 +419,19 @@ export default function ItemPage({ params }: PageProps) {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="font-semibold mb-3">📦 Delivery Information</h3>
               <p className="text-sm text-gray-600 mb-2">
-                • Free pickup in {item.city}{item.area ? `, ${item.area}` : ''}<br/>
-                • Can arrange delivery (extra charges may apply)<br/>
-                • Contact seller for shipping options
+                • Free pickup in {item.city}
+                {item.area ? `, ${item.area}` : ""}
+                <br />
+                • Can arrange delivery (extra charges may apply)
+                <br />• Contact seller for shipping options
               </p>
-              
+
               <h3 className="font-semibold mb-2 mt-4">🔒 Secure Transaction</h3>
               <p className="text-sm text-gray-600">
-                • Real eSewa sandbox integration<br/>
-                • No real money will be charged<br/>
-                • College project purpose only
+                • Real eSewa sandbox integration
+                <br />
+                • No real money will be charged
+                <br />• College project purpose only
               </p>
             </div>
 
@@ -313,8 +439,11 @@ export default function ItemPage({ params }: PageProps) {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="font-semibold mb-2">👤 Seller Information</h3>
               <p className="text-sm text-gray-600">
-                <strong>Name:</strong> {item.sellerName}<br/>
-                <strong>Location:</strong> {item.city}{item.area ? `, ${item.area}` : ''}<br/>
+                <strong>Name:</strong> {item.sellerName}
+                <br />
+                <strong>Location:</strong> {item.city}
+                {item.area ? `, ${item.area}` : ""}
+                <br />
                 <strong>Contact:</strong> {item.phone} ({item.contactMethod})
               </p>
             </div>

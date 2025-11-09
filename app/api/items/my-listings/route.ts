@@ -1,9 +1,10 @@
-// app/api/items/my-listings/route.ts
+// app/api/items/my-listings/route.ts - SELF-CONTAINED
 import { NextRequest, NextResponse } from 'next/server';
+import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 
-// Define item schema
+// Define item schema directly in this file
 const itemSchema = new mongoose.Schema({
   title: String,
   description: String,
@@ -21,6 +22,7 @@ const itemSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Get or create Item model
 const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
 
 // JWT verification function
@@ -33,34 +35,36 @@ function verifyToken(token: string): any {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔐 MY-LISTINGS API CALLED');
+    
     // Get token from cookies
-    const cookieHeader = request.headers.get('cookie');
-    const tokenCookie = cookieHeader?.split(';').find(c => c.trim().startsWith('auth-token='));
-    const token = tokenCookie?.split('=')[1];
+    const token = request.cookies.get('auth-token')?.value;
 
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let user;
-    try {
-      user = verifyToken(token);
-    } catch (error) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    // Verify token
+    const decodedToken = verifyToken(token);
+    console.log('👤 Decoded token user ID:', decodedToken.userId);
 
     // Connect to MongoDB
-    if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGODB_URI!);
-    }
+    await connectDB();
+
+    const userId = decodedToken.userId;
+    console.log('🔍 Fetching listings for user:', userId);
 
     // Get user's listings
-    const userItems = await Item.find({ sellerId: user.userId }).sort({ createdAt: -1 });
+    const userItems = await Item.find({ 
+      sellerId: userId 
+    }).sort({ createdAt: -1 });
+
+    console.log(`✅ Found ${userItems.length} listings for user: ${userId}`);
 
     return NextResponse.json(userItems);
 
   } catch (error) {
-    console.error('Error fetching user listings:', error);
+    console.error('❌ Error fetching user listings:', error);
     return NextResponse.json(
       { error: 'Failed to fetch listings' }, 
       { status: 500 }

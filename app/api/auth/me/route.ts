@@ -1,7 +1,7 @@
 // app/api/auth/me/route.ts - FIXED
 import { NextRequest, NextResponse } from 'next/server';
 import User from '@/models/User';
-import connect from '@/lib/mongodb';
+import connectDB from '@/lib/mongodb';
 import jwt from 'jsonwebtoken';
 
 // Token verification function
@@ -23,7 +23,7 @@ const verifyToken = (token: string) => {
 
 export async function GET(request: NextRequest) {
   try {
-    await connect();
+    await connectDB();
     
     const token = request.cookies.get('auth-token')?.value;
     
