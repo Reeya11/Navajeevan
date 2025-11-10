@@ -117,7 +117,7 @@ export function Navbar() {
             )}
 
             {/* Home Button - Show only when user is logged in */}
-            {user && (
+            {/* {user && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -127,7 +127,7 @@ export function Navbar() {
               >
                 <Home className="h-4 w-4" />
               </Button>
-            )}
+            )} */}
 
             {/* Logo */}
             <Link href=" " className="flex items-center space-x-2">

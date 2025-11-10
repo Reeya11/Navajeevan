@@ -1,10 +1,10 @@
-// app/trending/page.tsx - FIXED
+// app/trending/page.tsx - UPDATED WITH SMART BADGES
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRecommendations } from '@/hooks/useRecommendations';
-import { TrendingUp, Zap, Flame, Star } from 'lucide-react'; // Changed Fire to Flame/Star
+import { TrendingUp, Zap, Flame, Star } from 'lucide-react';
 
 export default function TrendingPage() {
   const { recommendations, loading, error } = useRecommendations(undefined, 'trending', 12);
@@ -59,16 +59,20 @@ export default function TrendingPage() {
                 href={`/item/${item.itemId}`}
                 className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-lg hover:border-blue-300 transition-all duration-300 group relative"
               >
-                {/* Trending Badge for Top 3 */}
-                {index < 3 && (
-                  <div className={`absolute -top-2 -left-2 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10 ${
-                    index === 0 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
-                    index === 1 ? 'bg-gradient-to-r from-gray-500 to-gray-700' :
-                    'bg-gradient-to-r from-amber-700 to-amber-900'
-                  }`}>
-                    {index === 0 ? '🔥 Hot' : index === 1 ? '⚡ Trending' : '⭐ Popular'}
+                {/* SMART BADGES BASED ON SIMILARITY SCORE */}
+                {item.similarity > 0.7 ? (
+                  <div className="absolute -top-2 -left-2 bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
+                    🔥 HOT ({Math.round(item.similarity * 100)}%)
                   </div>
-                )}
+                ) : item.similarity > 0.5 ? (
+                  <div className="absolute -top-2 -left-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
+                    ⚡ TRENDING ({Math.round(item.similarity * 100)}%)
+                  </div>
+                ) : item.similarity > 0.3 ? (
+                  <div className="absolute -top-2 -left-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10">
+                    ⭐ POPULAR ({Math.round(item.similarity * 100)}%)
+                  </div>
+                ) : null}
                 
                 <div className="relative h-48 bg-gray-100 rounded-t-lg overflow-hidden">
                   {item.images && item.images.length > 0 ? (
