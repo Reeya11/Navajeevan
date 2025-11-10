@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { useState, useEffect } from "react";
 import { MessageCircle, Heart, CreditCard } from "lucide-react";
 import PaymentComponent from "@/components/PaymentComponent";
-
+import RecommendationsSection from "@/components/RecommendationsSection";
 // Define the item interface
 interface Item {
   _id: string;
@@ -557,7 +557,16 @@ export default function ItemPage({ params }: PageProps) {
             </div>
           </div>
         </div>
+      </div> {/* ADD RECOMMENDATIONS HERE */}
+      <div className="mt-12">
+        <RecommendationsSection 
+          itemId={itemId}
+          title="Similar Items You Might Like"
+          type="similar"
+          limit={6}
+        />
       </div>
+
     </div>
   );
 }

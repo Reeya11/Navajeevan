@@ -1,20 +1,32 @@
 // components/navbar.tsx - FIXED VERSION
-'use client';
+"use client";
 
-import Link from "next/link"
-import { useRouter, usePathname } from "next/navigation"
-import { MessageCircle, User, Package, LogOut, Bell, Settings, ArrowLeft, Home, Heart } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useAuth } from "@/contexts/AuthContext"
-import { useState, useEffect } from "react" // ← Added useEffect
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+//import { MessageCircle, User, Package, LogOut, Bell, Settings, ArrowLeft, Home, Heart } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react"; // ← Added useEffect
+import {
+  MessageCircle,
+  User,
+  Package,
+  LogOut,
+  Bell,
+  Settings,
+  ArrowLeft,
+  Home,
+  Heart,
+  Flame,
+} from "lucide-react";
 
 export function Navbar() {
-  const router = useRouter()
-  const pathname = usePathname()
-  const { user, logout, isLoading } = useAuth()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [savedItemsCount, setSavedItemsCount] = useState(0) // ← Start with 0
-  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0) // ← Added messages count
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user, logout, isLoading } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [savedItemsCount, setSavedItemsCount] = useState(0); // ← Start with 0
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0); // ← Added messages count
 
   // NEW: Fetch counts from APIs
   useEffect(() => {
@@ -23,21 +35,21 @@ export function Navbar() {
     const fetchCounts = async () => {
       try {
         const [favoritesRes, statsRes] = await Promise.all([
-          fetch('/api/dashboard/favorites-count'),
-          fetch('/api/dashboard/stats')
+          fetch("/api/dashboard/favorites-count"),
+          fetch("/api/dashboard/stats"),
         ]);
-        
+
         if (favoritesRes.ok) {
           const favoritesData = await favoritesRes.json();
           setSavedItemsCount(favoritesData.count || 0);
         }
-        
+
         if (statsRes.ok) {
           const statsData = await statsRes.json();
           setUnreadMessagesCount(statsData.unreadMessages || 0);
         }
       } catch (error) {
-        console.error('Failed to fetch counts:', error);
+        console.error("Failed to fetch counts:", error);
       }
     };
 
@@ -47,23 +59,23 @@ export function Navbar() {
   }, [user]); // Re-fetch when user changes
 
   const handleLogout = async () => {
-    setIsLoggingOut(true)
+    setIsLoggingOut(true);
     try {
-      await logout()
-      window.location.href = '/'
+      await logout();
+      window.location.href = "/";
     } catch (error) {
-      console.error('Logout failed:', error)
-      setIsLoggingOut(false)
+      console.error("Logout failed:", error);
+      setIsLoggingOut(false);
     }
-  }
+  };
 
   const handleBack = () => {
     if (window.history.length > 1) {
-      router.back()
+      router.back();
     } else {
-      router.push('/')
+      router.push("/");
     }
-  }
+  };
 
   // Show loading state while checking auth
   if (isLoading) {
@@ -82,7 +94,7 @@ export function Navbar() {
           </div>
         </div>
       </nav>
-    )
+    );
   }
 
   return (
@@ -92,7 +104,7 @@ export function Navbar() {
           {/* Left side: Logo and Navigation */}
           <div className="flex items-center space-x-4">
             {/* Back Button - Only show when not on home page AND user is logged in */}
-            {user && pathname !== '/' && (
+            {user && pathname !== "/" && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -103,7 +115,7 @@ export function Navbar() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            
+
             {/* Home Button - Show only when user is logged in */}
             {user && (
               <Button
@@ -120,27 +132,47 @@ export function Navbar() {
             {/* Logo */}
             <Link href=" " className="flex items-center space-x-2">
               <Package className="h-8 w-8 text-accent" />
-              <span className="text-xl font-bold text-foreground hidden sm:block">NavaJeevan</span>
+              <span className="text-xl font-bold text-foreground hidden sm:block">
+                NavaJeevan
+              </span>
             </Link>
           </div>
 
           {/* Center: Navigation Links - ONLY when user is logged in */}
           {user && (
             <div className="hidden md:flex items-center space-x-8">
-              <Link 
-                href="/browse" 
-                className={`transition-colors ${pathname === '/browse' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
+              <Link
+                href="/browse"
+                className={`transition-colors ${
+                  pathname === "/browse"
+                    ? "text-accent font-medium"
+                    : "text-foreground hover:text-accent"
+                }`}
               >
                 Browse
               </Link>
-              
-              <Link 
-                href="/dashboard" 
-                className={`transition-colors ${pathname === '/dashboard' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
+
+              <Link
+                href="/dashboard"
+                className={`transition-colors ${
+                  pathname === "/dashboard"
+                    ? "text-accent font-medium"
+                    : "text-foreground hover:text-accent"
+                }`}
               >
                 Dashboard
               </Link>
-              
+              <Link
+                href="/trending"
+                className={`transition-colors ${
+                  pathname === "/trending"
+                    ? "text-accent font-medium"
+                    : "text-foreground hover:text-accent"
+                }`}
+              >
+                <Flame className="h-4 w-4 inline mr-1" />
+                Trending
+              </Link>
               {/* MESSAGES WITH BOUNCY BADGE */}
               <Link
                 href="/messages"
@@ -150,14 +182,18 @@ export function Navbar() {
                 <span>Messages</span>
                 {unreadMessagesCount > 0 && (
                   <span className="absolute -top-2 -right-2 bg-gradient-to-br from-green-500 to-emerald-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow-lg animate-bounce ring-1 ring-white">
-                    {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                    {unreadMessagesCount > 9 ? "9+" : unreadMessagesCount}
                   </span>
                 )}
               </Link>
 
-              <Link 
-                href="/categories" 
-                className={`transition-colors ${pathname === '/categories' ? 'text-accent font-medium' : 'text-foreground hover:text-accent'}`}
+              <Link
+                href="/categories"
+                className={`transition-colors ${
+                  pathname === "/categories"
+                    ? "text-accent font-medium"
+                    : "text-foreground hover:text-accent"
+                }`}
               >
                 Categories
               </Link>
@@ -170,17 +206,17 @@ export function Navbar() {
               // USER IS LOGGED IN - Show full menu
               <div className="flex items-center gap-4">
                 {/* FAVORITES/SAVED ITEMS WITH BOUNCY BADGE */}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="relative text-amber-700 hover:text-amber-800 hover:bg-amber-50 group"
-                  onClick={() => router.push('/favorites')}
+                  onClick={() => router.push("/favorites")}
                   aria-label="Saved items"
                 >
                   <Heart className="h-5 w-5 group-hover:scale-110 transition-transform" />
                   {savedItemsCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-gradient-to-br from-pink-500 to-rose-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-bounce ring-1 ring-white">
-                      {savedItemsCount > 9 ? '9+' : savedItemsCount}
+                      {savedItemsCount > 9 ? "9+" : savedItemsCount}
                     </span>
                   )}
                 </Button>
@@ -198,26 +234,30 @@ export function Navbar() {
                 </div>
 
                 {/* Settings */}
-                <Button variant="ghost" size="icon" onClick={() => router.push('/settings')}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => router.push("/settings")}
+                >
                   <Settings className="h-5 w-5" />
                 </Button>
 
                 {/* Logout */}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleLogout}
                   disabled={isLoggingOut}
                 >
                   <LogOut className="h-4 w-4 mr-2" />
-                  {isLoggingOut ? 'Logging out...' : 'Logout'}
+                  {isLoggingOut ? "Logging out..." : "Logout"}
                 </Button>
 
                 {/* Sell Item Button - Only for logged in users */}
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   className="bg-green-600 hover:bg-green-700"
-                  onClick={() => router.push('/sell')}
+                  onClick={() => router.push("/sell")}
                 >
                   Sell Item
                 </Button>
@@ -225,19 +265,19 @@ export function Navbar() {
             ) : (
               // USER IS NOT LOGGED IN - Show ONLY Login/Signup
               <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
-                  onClick={() => router.push('/login')}
+                  onClick={() => router.push("/login")}
                 >
                   <User className="h-4 w-4 mr-2" />
                   Login
                 </Button>
-                
-                <Button 
-                  size="sm" 
+
+                <Button
+                  size="sm"
                   className="bg-accent hover:bg-accent/90"
-                  onClick={() => router.push('/register')}
+                  onClick={() => router.push("/register")}
                 >
                   Sign Up
                 </Button>
@@ -247,5 +287,5 @@ export function Navbar() {
         </div>
       </div>
     </nav>
-  )
+  );
 }
