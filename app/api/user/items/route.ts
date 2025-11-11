@@ -17,6 +17,7 @@ const itemSchema = new mongoose.Schema({
   sellerId: String,
   sellerName: String,
   sellerEmail: String,
+  status: { type: String, default: 'active' },
   createdAt: { type: Date, default: Date.now }
 });
 

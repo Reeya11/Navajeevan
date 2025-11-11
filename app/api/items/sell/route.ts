@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
     const phone = formData.get('phone') as string;
     const contactMethod = formData.get('contactMethod') as string;
     const imageFiles = formData.getAll('images').filter((item): item is File => item instanceof File);
+    
 
     console.log('📝 Form data:', { 
       title, 
@@ -158,6 +159,7 @@ export async function POST(request: NextRequest) {
       sellerId: user.userId || user.id || user.sub,
       sellerName: user.name || 'Unknown User',
       sellerEmail: user.email || 'unknown@example.com',
+      status: 'active'
     });
 
     await newItem.save();
