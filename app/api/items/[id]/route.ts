@@ -1,25 +1,7 @@
 // app/api/items/[id]/route.ts - FIXED
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-
-const itemSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  price: Number,
-  category: String,
-  condition: String,
-  city: String,
-  area: String,
-  phone: String,
-  contactMethod: String,
-  images: [String],
-  sellerId: String,
-  sellerName: String,
-  status: { type: String, default: 'active' },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
+import Item from '@/lib/models/Item';
 
 // PUT - Update item
 export async function PUT(

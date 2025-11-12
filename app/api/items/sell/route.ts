@@ -1,37 +1,12 @@
 // app/api/items/sell/route.ts - SIMPLIFIED WITHOUT SHARP
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { verifyToken } from '@/lib/jwt';
 import mongoose from 'mongoose';
 import path from 'path';
 import { GridFSBucket, MongoClient } from 'mongodb';
+import Item from '@/lib/models/Item';
 
-// Define item schema
-const itemSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  price: { type: Number, required: true },
-  category: { type: String, required: true },
-  condition: { type: String, required: true },
-  city: { type: String, required: true },
-  area: { type: String, required: true },
-  phone: { type: String, required: true },
-  contactMethod: { type: String, required: true },
-  images: { type: [String], required: true },
-  sellerId: { type: String, required: true },
-  sellerName: { type: String, required: true },
-  sellerEmail: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
-
-// Simple JWT verification function
-function verifyToken(token: string): any {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
-  return jwt.verify(token, process.env.JWT_SECRET);
-}
 
 export async function POST(request: NextRequest) {
   try {

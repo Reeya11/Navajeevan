@@ -3,26 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
-
-// Define item schema
-const itemSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  price: Number,
-  category: String,
-  condition: String,
-  city: String,
-  area: String,
-  phone: String,
-  contactMethod: String,
-  images: [String],
-  sellerId: String,
-  sellerName: String,
-  sellerEmail: String,
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
+import Item from '@/lib/models/Item';
+import { verifyToken } from '@/lib/jwt';
 
 // User schema for consistent user IDs
 const userSchema = new mongoose.Schema({
@@ -34,12 +16,7 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 // JWT verification function
-function verifyToken(token: string): any {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
-  return jwt.verify(token, process.env.JWT_SECRET);
-}
+
 
 // Get real user ID (converts temporary IDs to real MongoDB IDs)
 async function getRealUserId(token: string): Promise<string> {

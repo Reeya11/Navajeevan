@@ -1,30 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSearchInstance } from '@/app/utils/hybridSearch';
 import mongoose from 'mongoose';
-
-// Add the same Mongoose model definition as your categories API
-const itemSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  price: Number,
-  category: String,
-  condition: String,
-  city: String,
-  area: String,
-  phone: String,
-  contactMethod: String,
-  images: [String],
-  sellerId: String,
-  sellerName: String,
-  status: { type: String, default: 'active' }, // ← ADDED STATUS FIELD
-  soldAt: Date, // ← ADDED SOLD TRACKING
-  soldTo: String, // ← ADDED SOLD TRACKING
-  soldToName: String, // ← ADDED SOLD TRACKING
-  transactionId: String, // ← ADDED SOLD TRACKING
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
+import Item from '@/lib/models/Item';
 
 async function getProductsFromDatabase(filters: any = {}) {
   try {

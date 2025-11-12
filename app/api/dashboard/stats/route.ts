@@ -3,34 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
-
-// Connect to your existing item schema
-const itemSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  price: Number,
-  category: String,
-  condition: String,
-  city: String,
-  area: String,
-  phone: String,
-  contactMethod: String,
-  images: [String],
-  sellerId: String,
-  sellerName: String,
-  sellerEmail: String,
-  status: String,
-  views: Number,
-  soldAt: Date,
-  soldTo: String,
-  soldToName: String,
-  transactionId: String,
-  paymentProvider: String,
-  paymentAmount: Number,
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
+import { verifyToken } from '@/lib/jwt';
+import Item from '@/lib/models/Item';
 
 // User schema for consistent user IDs
 const userSchema = new mongoose.Schema({
@@ -62,14 +36,6 @@ const messageSchema = new mongoose.Schema({
 });
 
 const Message = mongoose.models.Message || mongoose.model('Message', messageSchema);
-
-// JWT verification function
-function verifyToken(token: string): any {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
-  return jwt.verify(token, process.env.JWT_SECRET);
-}
 
 // Get real user ID (converts temporary IDs to real MongoDB IDs)
 async function getRealUserId(token: string): Promise<string> {

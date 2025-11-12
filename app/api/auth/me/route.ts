@@ -3,23 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import User from '@/models/User';
 import connectDB from '@/lib/mongodb';
 import jwt from 'jsonwebtoken';
-
-// Token verification function
-const verifyToken = (token: string) => {
-  try {
-    const secret = process.env.JWT_SECRET;
-    
-    if (!secret) {
-      throw new Error('JWT_SECRET is not defined');
-    }
-
-    const decoded = jwt.verify(token, secret as jwt.Secret);
-    return decoded;
-  } catch (error) {
-    console.error('Token verification failed:', error);
-    return null;
-  }
-};
+import { verifyToken } from '@/lib/jwt';
 
 export async function GET(request: NextRequest) {
   try {

@@ -3,35 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
-
-// Define item schema directly in this file
-const itemSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  price: Number,
-  category: String,
-  condition: String,
-  city: String,
-  area: String,
-  phone: String,
-  contactMethod: String,
-  images: [String],
-  sellerId: String,
-  sellerName: String,
-  sellerEmail: String,
-  createdAt: { type: Date, default: Date.now }
-});
-
-// Get or create Item model
-const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
-
-// JWT verification function
-function verifyToken(token: string): any {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
-  return jwt.verify(token, process.env.JWT_SECRET);
-}
+import { verifyToken } from '@/lib/jwt';
+import Item from '@/lib/models/Item';
 
 export async function GET(request: NextRequest) {
   try {

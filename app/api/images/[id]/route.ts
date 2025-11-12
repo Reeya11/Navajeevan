@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { MongoClient, GridFSBucket, ObjectId } from 'mongodb';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+
   const mongoUri = process.env.MONGODB_URI!;
   const client = await MongoClient.connect(mongoUri);
   const db = client.db();
   const bucket = new GridFSBucket(db, { bucketName: 'images' });
 
-  const id = params.id;
+  const {id} = await params;
   const downloadStream = bucket.openDownloadStream(new ObjectId(id));
 
   const chunks: Buffer[] = [];

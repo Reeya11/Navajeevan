@@ -2,24 +2,7 @@
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { baseCategories } from '@/lib/categories';
-
-const itemSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  price: Number,
-  category: String,
-  condition: String,
-  city: String,
-  area: String,
-  phone: String,
-  contactMethod: String,
-  images: [String],
-  sellerId: String,
-  sellerName: String,
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
+import Item from '@/lib/models/Item';
 
 export async function GET() {
   try {

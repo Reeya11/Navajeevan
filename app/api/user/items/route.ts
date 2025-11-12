@@ -1,35 +1,9 @@
 // app/api/user/items/route.ts - NEW FILE
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { verifyToken } from '@/lib/jwt';
 import mongoose from 'mongoose';
-
-const itemSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  price: Number,
-  category: String,
-  condition: String,
-  city: String,
-  area: String,
-  phone: String,
-  contactMethod: String,
-  images: [String],
-  sellerId: String,
-  sellerName: String,
-  sellerEmail: String,
-  status: { type: String, default: 'active' },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
-
-// Simple JWT verification function
-function verifyToken(token: string): any {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
-  return jwt.verify(token, process.env.JWT_SECRET);
-}
+import Item from '@/lib/models/Item';
 
 export async function GET(request: NextRequest) {
   try {

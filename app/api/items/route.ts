@@ -1,17 +1,11 @@
 // app/api/items/route.ts - FINAL FIXED VERSION
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { verifyToken } from '@/lib/jwt';
 import connectDB from '@/lib/mongodb';
 import Item from '@/lib/models/Item';
 import User from '@/lib/models/User';
 
-// JWT verification function
-function verifyToken(token: string): any {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
-  return jwt.verify(token, process.env.JWT_SECRET);
-}
 
 // Get real user ID (converts temporary IDs to real MongoDB IDs)
 async function getRealUserId(token: string): Promise<string> {

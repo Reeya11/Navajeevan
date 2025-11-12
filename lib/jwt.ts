@@ -11,16 +11,10 @@ export const signToken = (id: string): string => {
   return jwt.sign({ id }, secret, { expiresIn: '7d' });
 };
 
-export const verifyToken = (token: string) => {
-  try {
-    const secret = process.env.JWT_SECRET;
-    
-    if (!secret) {
-      throw new Error('JWT_SECRET is not defined');
-    }
-
-    return jwt.verify(token, secret);
-  } catch (error) {
-    return null;
+// Token verification function
+export const verifyToken = (token: string): any => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
   }
-};
+  return jwt.verify(token, process.env.JWT_SECRET);
+}
